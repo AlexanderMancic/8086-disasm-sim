@@ -50,9 +50,9 @@ int main(int argc, char **argv) {
 		if (instBuffer[0] >> 2 == 0b100010) {
 
 			char dst[3] = {0};
-			char src[3] = {0};
-			char regName[3] = {0};
-			char rmName[3] = {0};
+			char src[10] = {0};
+			char regString[3] = {0};
+			char rmString[10] = {0};
 			u8 reg = (instBuffer[1] >> 3) & 0b111;
 			u8 w = instBuffer[0] & 1;
 			u8 d = (instBuffer[0] >> 1) & 1;
@@ -62,124 +62,165 @@ int main(int argc, char **argv) {
 			if (w) {
 				switch (reg) {
 					case 0:
-						strncpy(regName, "ax", 3);
+						strncpy(regString, "ax", 3);
 						break;
 					case 1:
-						strncpy(regName, "cx", 3);
+						strncpy(regString, "cx", 3);
 						break;
 					case 2:
-						strncpy(regName, "dx", 3);
+						strncpy(regString, "dx", 3);
 						break;
 					case 3:
-						strncpy(regName, "bx", 3);
+						strncpy(regString, "bx", 3);
 						break;
 					case 4:
-						strncpy(regName, "sp", 3);
+						strncpy(regString, "sp", 3);
 						break;
 					case 5:
-						strncpy(regName, "bp", 3);
+						strncpy(regString, "bp", 3);
 						break;
 					case 6:
-						strncpy(regName, "si", 3);
+						strncpy(regString, "si", 3);
 						break;
 					case 7:
-						strncpy(regName, "di", 3);
+						strncpy(regString, "di", 3);
 						break;
 				}
 			} else {
 				switch (reg) {
 					case 0:
-						strncpy(regName, "al", 3);
+						strncpy(regString, "al", 3);
 						break;
 					case 1:
-						strncpy(regName, "cl", 3);
+						strncpy(regString, "cl", 3);
 						break;
 					case 2:
-						strncpy(regName, "dl", 3);
+						strncpy(regString, "dl", 3);
 						break;
 					case 3:
-						strncpy(regName, "bl", 3);
+						strncpy(regString, "bl", 3);
 						break;
 					case 4:
-						strncpy(regName, "ah", 3);
+						strncpy(regString, "ah", 3);
 						break;
 					case 5:
-						strncpy(regName, "ch", 3);
+						strncpy(regString, "ch", 3);
 						break;
 					case 6:
-						strncpy(regName, "dh", 3);
+						strncpy(regString, "dh", 3);
 						break;
 					case 7:
-						strncpy(regName, "bh", 3);
+						strncpy(regString, "bh", 3);
 						break;
 				}
 			}
 
-			if (mod != 0b11) {
-				logFatal(inputFD, outputFD, "Error: this version only support register to register movs");
-			}
-			if (w) {
-				switch (rm) {
-					case 0:
-						strncpy(rmName, "ax", 3);
-						break;
-					case 1:
-						strncpy(rmName, "cx", 3);
-						break;
-					case 2:
-						strncpy(rmName, "dx", 3);
-						break;
-					case 3:
-						strncpy(rmName, "bx", 3);
-						break;
-					case 4:
-						strncpy(rmName, "sp", 3);
-						break;
-					case 5:
-						strncpy(rmName, "bp", 3);
-						break;
-					case 6:
-						strncpy(rmName, "si", 3);
-						break;
-					case 7:
-						strncpy(rmName, "di", 3);
-						break;
-				}
-			} else {
-				switch (rm) {
-					case 0:
-						strncpy(rmName, "al", 3);
-						break;
-					case 1:
-						strncpy(rmName, "cl", 3);
-						break;
-					case 2:
-						strncpy(rmName, "dl", 3);
-						break;
-					case 3:
-						strncpy(rmName, "bl", 3);
-						break;
-					case 4:
-						strncpy(rmName, "ah", 3);
-						break;
-					case 5:
-						strncpy(rmName, "ch", 3);
-						break;
-					case 6:
-						strncpy(rmName, "dh", 3);
-						break;
-					case 7:
-						strncpy(rmName, "bh", 3);
-						break;
-				}
-			}
+			switch (mod) {
+				case 0:
+					switch (rm) {
+						case 0:
+							strncpy(rmString, "[bx + si]", 10);
+							break;
+						case 1:
+							strncpy(rmString, "[bx + di]", 10);
+							break;
+						case 2:
+							strncpy(rmString, "[bp + si]", 10);
+							break;
+						case 3:
+							strncpy(rmString, "[bp + di]", 10);
+							break;
+						case 4:
+							strncpy(rmString, "[si]", 5);
+							break;
+						case 5:
+							strncpy(rmString, "[di]", 5);
+							break;
+						case 6:
+							logFatal(
+								inputFD,
+								outputFD,
+								"Error: this version doesn't support direct address movs"
+							);
+							break;
+						case 7:
+							strncpy(rmString, "[bx]", 5);
+							break;
+					}
+					break;
+				case 1:
+				case 2:
+					logFatal(
+						inputFD,
+						outputFD,
+						"Error: this version only supports movs in register or memory (without displacement) mode"
+					);
+					break;
+				case 3:
+					if (w) {
+						switch (rm) {
+							case 0:
+								strncpy(rmString, "ax", 3);
+								break;
+							case 1:
+								strncpy(rmString, "cx", 3);
+								break;
+							case 2:
+								strncpy(rmString, "dx", 3);
+								break;
+							case 3:
+								strncpy(rmString, "bx", 3);
+								break;
+							case 4:
+								strncpy(rmString, "sp", 3);
+								break;
+							case 5:
+								strncpy(rmString, "bp", 3);
+								break;
+							case 6:
+								strncpy(rmString, "si", 3);
+								break;
+							case 7:
+								strncpy(rmString, "di", 3);
+								break;
+						}
+					} else {
+						switch (rm) {
+							case 0:
+								strncpy(rmString, "al", 3);
+								break;
+							case 1:
+								strncpy(rmString, "cl", 3);
+								break;
+							case 2:
+								strncpy(rmString, "dl", 3);
+								break;
+							case 3:
+								strncpy(rmString, "bl", 3);
+								break;
+							case 4:
+								strncpy(rmString, "ah", 3);
+								break;
+							case 5:
+								strncpy(rmString, "ch", 3);
+								break;
+							case 6:
+								strncpy(rmString, "dh", 3);
+								break;
+							case 7:
+								strncpy(rmString, "bh", 3);
+								break;
+						}
+					}
+							break;
+					}
 
 			if (d) {
-				strncpy(dst, regName, 2);
-				strncpy(src, rmName, 2);
+				strncpy(dst, regString, 2);
+				strncpy(src, rmString, 10);
 			} else {
-				strncpy(dst, rmName, 2);
-				strncpy(src, regName, 2);
+				strncpy(dst, rmString, 2);
+				strncpy(src, regString, 10);
 			}
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
@@ -201,7 +242,7 @@ int main(int argc, char **argv) {
 		// mov imm to reg
 		else if (instBuffer[0] >> 4 == 0b1011) {
 
-			char regName[3] = {0};
+			char regString[3] = {0};
 			char immString[6] = {0};
 			u8 reg = instBuffer[0] & 0b111;
 			u8 w = (instBuffer[0] >> 3) & 1;
@@ -219,28 +260,28 @@ int main(int argc, char **argv) {
 
 				switch (reg) {
 					case 0:
-						strncpy(regName, "ax", 3);
+						strncpy(regString, "ax", 3);
 						break;
 					case 1:
-						strncpy(regName, "cx", 3);
+						strncpy(regString, "cx", 3);
 						break;
 					case 2:
-						strncpy(regName, "dx", 3);
+						strncpy(regString, "dx", 3);
 						break;
 					case 3:
-						strncpy(regName, "bx", 3);
+						strncpy(regString, "bx", 3);
 						break;
 					case 4:
-						strncpy(regName, "sp", 3);
+						strncpy(regString, "sp", 3);
 						break;
 					case 5:
-						strncpy(regName, "bp", 3);
+						strncpy(regString, "bp", 3);
 						break;
 					case 6:
-						strncpy(regName, "si", 3);
+						strncpy(regString, "si", 3);
 						break;
 					case 7:
-						strncpy(regName, "di", 3);
+						strncpy(regString, "di", 3);
 						break;
 				}
 			} else {
@@ -249,28 +290,28 @@ int main(int argc, char **argv) {
 
 				switch (reg) {
 					case 0:
-						strncpy(regName, "al", 3);
+						strncpy(regString, "al", 3);
 						break;
 					case 1:
-						strncpy(regName, "cl", 3);
+						strncpy(regString, "cl", 3);
 						break;
 					case 2:
-						strncpy(regName, "dl", 3);
+						strncpy(regString, "dl", 3);
 						break;
 					case 3:
-						strncpy(regName, "bl", 3);
+						strncpy(regString, "bl", 3);
 						break;
 					case 4:
-						strncpy(regName, "ah", 3);
+						strncpy(regString, "ah", 3);
 						break;
 					case 5:
-						strncpy(regName, "ch", 3);
+						strncpy(regString, "ch", 3);
 						break;
 					case 6:
-						strncpy(regName, "dh", 3);
+						strncpy(regString, "dh", 3);
 						break;
 					case 7:
-						strncpy(regName, "bh", 3);
+						strncpy(regString, "bh", 3);
 						break;
 				}
 			}
@@ -280,7 +321,7 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
-			if (writeOutput(inputFD, outputFD, regName) == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, regString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
