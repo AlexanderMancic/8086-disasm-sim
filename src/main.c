@@ -7,6 +7,7 @@
 
 #include "types.h"
 #include "writeOutput.h"
+#include "logFatal.h"
 
 int main(int argc, char **argv) {
 
@@ -36,25 +37,16 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		u8 instBuffer[2] = {0};
+		u8 instBuffer[3] = {0};
 		ssize_t bytesRead = read(inputFD, &instBuffer[0], 2);
 
 		if (bytesRead == 0) {
 			break;
 		} else if (bytesRead != 2) {
-			fprintf(stderr, "Error reading the input file");
-			if (close(inputFD) == -1) {
-				perror("Error closing input file");
-				if (close(outputFD) == -1) {
-					perror("Error closing input file");
-				}
-			}
-			if (close(outputFD) == -1) {
-				perror("Error closing input file");
-			}
-			return EXIT_FAILURE;
+			logFatal(inputFD, outputFD, "Error reading the input file");
 		}
 
+		// mov r/m to/from reg
 		if (instBuffer[0] >> 2 == 0b100010) {
 
 			char dst[3] = {0};
@@ -124,17 +116,7 @@ int main(int argc, char **argv) {
 			}
 
 			if (mod != 0b11) {
-				fprintf(stderr, "Error: this version only support register to register movs");
-				if (close(inputFD) == -1) {
-					perror("Error closing input file");
-					if (close(outputFD) == -1) {
-						perror("Error closing input file");
-					}
-				}
-				if (close(outputFD) == -1) {
-					perror("Error closing input file");
-				}
-				return EXIT_FAILURE;
+				logFatal(inputFD, outputFD, "Error: this version only support register to register movs");
 			}
 			if (w) {
 				switch (rm) {
@@ -216,18 +198,103 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		}
-		else {
-			fprintf(stderr, "Unknown opcode");
-			if (close(inputFD) == -1) {
-				perror("Error closing input file");
-				if (close(outputFD) == -1) {
-					perror("Error closing input file");
+		// mov imm to reg
+		else if (instBuffer[0] >> 4 == 0b1011) {
+
+			char regName[3] = {0};
+			char immString[6] = {0};
+			u8 reg = instBuffer[0] & 0b111;
+			u8 w = (instBuffer[0] >> 3) & 1;
+			u16 imm = 0;
+
+			if (w) {
+
+				bytesRead = read(inputFD, &instBuffer[2], 1);
+
+				if (bytesRead != 1) {
+					logFatal(inputFD, outputFD, "Error reading the input file");
+				}
+
+				imm = instBuffer[1] | (instBuffer[2] << 8);
+
+				switch (reg) {
+					case 0:
+						strncpy(regName, "ax", 3);
+						break;
+					case 1:
+						strncpy(regName, "cx", 3);
+						break;
+					case 2:
+						strncpy(regName, "dx", 3);
+						break;
+					case 3:
+						strncpy(regName, "bx", 3);
+						break;
+					case 4:
+						strncpy(regName, "sp", 3);
+						break;
+					case 5:
+						strncpy(regName, "bp", 3);
+						break;
+					case 6:
+						strncpy(regName, "si", 3);
+						break;
+					case 7:
+						strncpy(regName, "di", 3);
+						break;
+				}
+			} else {
+
+				imm = instBuffer[1];
+
+				switch (reg) {
+					case 0:
+						strncpy(regName, "al", 3);
+						break;
+					case 1:
+						strncpy(regName, "cl", 3);
+						break;
+					case 2:
+						strncpy(regName, "dl", 3);
+						break;
+					case 3:
+						strncpy(regName, "bl", 3);
+						break;
+					case 4:
+						strncpy(regName, "ah", 3);
+						break;
+					case 5:
+						strncpy(regName, "ch", 3);
+						break;
+					case 6:
+						strncpy(regName, "dh", 3);
+						break;
+					case 7:
+						strncpy(regName, "bh", 3);
+						break;
 				}
 			}
-			if (close(outputFD) == -1) {
-				perror("Error closing input file");
+
+			snprintf(immString, sizeof(immString), "%u", imm);
+
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
 			}
-			return EXIT_FAILURE;
+			if (writeOutput(inputFD, outputFD, regName) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		else {
+			logFatal(inputFD, outputFD, "Error: Unknown opcode");
 		}
 	}
 
