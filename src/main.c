@@ -4,10 +4,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #include "types.h"
 #include "writeOutput.h"
 #include "logFatal.h"
+
+#define MAX_DST 3
+#define MAX_SRC 15
 
 int main(int argc, char **argv) {
 
@@ -49,10 +53,10 @@ int main(int argc, char **argv) {
 		// mov r/m to/from reg
 		if (instBuffer[0] >> 2 == 0b100010) {
 
-			char dst[3] = {0};
-			char src[10] = {0};
-			char regString[3] = {0};
-			char rmString[10] = {0};
+			char dst[MAX_DST] = {0};
+			char src[MAX_SRC] = {0};
+			char regString[MAX_DST] = {0};
+			char rmString[MAX_SRC] = {0};
 			u8 reg = (instBuffer[1] >> 3) & 0b111;
 			u8 w = instBuffer[0] & 1;
 			u8 d = (instBuffer[0] >> 1) & 1;
@@ -149,6 +153,39 @@ int main(int argc, char **argv) {
 					}
 					break;
 				case 1:
+					bytesRead = read(inputFD, &instBuffer[2], 1);
+					if (bytesRead != 1) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i8 disp = instBuffer[2];
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
+					break;
 				case 2:
 					logFatal(
 						inputFD,
@@ -216,11 +253,11 @@ int main(int argc, char **argv) {
 					}
 
 			if (d) {
-				strncpy(dst, regString, 2);
-				strncpy(src, rmString, 10);
+				strncpy(dst, regString, MAX_DST);
+				strncpy(src, rmString, MAX_SRC);
 			} else {
-				strncpy(dst, rmString, 2);
-				strncpy(src, regString, 10);
+				strncpy(dst, rmString, MAX_DST);
+				strncpy(src, regString, MAX_SRC);
 			}
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
@@ -251,7 +288,6 @@ int main(int argc, char **argv) {
 			if (w) {
 
 				bytesRead = read(inputFD, &instBuffer[2], 1);
-
 				if (bytesRead != 1) {
 					logFatal(inputFD, outputFD, "Error reading the input file");
 				}
