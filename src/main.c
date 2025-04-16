@@ -141,11 +141,12 @@ int main(int argc, char **argv) {
 							strncpy(rmString, "[di]", 5);
 							break;
 						case 6:
-							logFatal(
-								inputFD,
-								outputFD,
-								"Error: this version doesn't support direct address movs"
-							);
+							bytesRead = read(inputFD, &instBuffer[2], 2);
+							if (bytesRead != 2) {
+								logFatal(inputFD, outputFD, "Error reading the input file");
+							}
+							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
 							break;
 						case 7:
 							strncpy(rmString, "[bx]", 5);
