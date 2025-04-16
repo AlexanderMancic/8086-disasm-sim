@@ -10,7 +10,7 @@
 #include "writeOutput.h"
 #include "logFatal.h"
 
-#define MAX_DST 3
+#define MAX_DST 17
 #define MAX_SRC 17
 
 int main(int argc, char **argv) {
