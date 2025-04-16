@@ -414,16 +414,16 @@ int main(int argc, char **argv) {
 			}
 
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
-			char addrString[6] = {0};
-			snprintf(addrString, sizeof(addrString), "%u", addr);
+			char addrString[8] = {0};
+			snprintf(addrString, sizeof(addrString), "[%u]", addr);
 
-			if (writeOutput(inputFD, outputFD, "mov ax, [") == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, "mov ax, ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
-			if (writeOutput(inputFD, outputFD, "]\n") == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 		}
@@ -436,16 +436,16 @@ int main(int argc, char **argv) {
 			}
 
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
-			char addrString[6] = {0};
-			snprintf(addrString, sizeof(addrString), "%u", addr);
+			char addrString[8] = {0};
+			snprintf(addrString, sizeof(addrString), "[%u]", addr);
 
-			if (writeOutput(inputFD, outputFD, "mov [") == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
-			if (writeOutput(inputFD, outputFD, "], ax\n") == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, ", ax\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 		}
