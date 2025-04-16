@@ -14,7 +14,8 @@ test: \
 	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
 	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
 	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
-	test_mem_to_accumulator_mov test_accumulator_to_mem_mov
+	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
+	test_listing_40
 
 test_single_reg_mov:
 	nasm -f bin asm/listing_0037_single_register_mov.asm -o bin/input
@@ -99,6 +100,13 @@ test_accumulator_to_mem_mov:
 	nasm -f bin asm/output.asm -o bin/output
 	cmp bin/input bin/output
 	echo "PASS: accumulator to mem mov"
+
+test_listing_40:
+	nasm -f bin ./asm/listing_0040_challenge_movs.asm -o bin/input
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
+	nasm -f bin asm/output.asm -o bin/output
+	cmp bin/input bin/output
+	echo "PASS: listing 40"
 
 clean:
 	rm -f obj/*.o bin/*
