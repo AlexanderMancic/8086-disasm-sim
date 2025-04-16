@@ -10,8 +10,7 @@
 #include "writeOutput.h"
 #include "logFatal.h"
 
-#define MAX_DST 17
-#define MAX_SRC 17
+#define MAX_OPERAND 17
 
 int main(int argc, char **argv) {
 
@@ -41,7 +40,7 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		u8 instBuffer[4] = {0};
+		u8 instBuffer[6] = {0};
 		ssize_t bytesRead = read(inputFD, &instBuffer[0], 2);
 
 		if (bytesRead == 0) {
@@ -53,10 +52,10 @@ int main(int argc, char **argv) {
 		// mov r/m to/from reg
 		if (instBuffer[0] >> 2 == 0b100010) {
 
-			char dst[MAX_DST] = {0};
-			char src[MAX_SRC] = {0};
-			char regString[MAX_DST] = {0};
-			char rmString[MAX_SRC] = {0};
+			char dst[MAX_OPERAND] = {0};
+			char src[MAX_OPERAND] = {0};
+			char regString[MAX_OPERAND] = {0};
+			char rmString[MAX_OPERAND] = {0};
 			u8 reg = (instBuffer[1] >> 3) & 0b111;
 			u8 w = instBuffer[0] & 1;
 			u8 d = (instBuffer[0] >> 1) & 1;
@@ -280,14 +279,14 @@ int main(int argc, char **argv) {
 						}
 					}
 							break;
-					}
+			}
 
 			if (d) {
-				strncpy(dst, regString, MAX_DST);
-				strncpy(src, rmString, MAX_SRC);
+				strncpy(dst, regString, MAX_OPERAND);
+				strncpy(src, rmString, MAX_OPERAND);
 			} else {
-				strncpy(dst, rmString, MAX_DST);
-				strncpy(src, regString, MAX_SRC);
+				strncpy(dst, rmString, MAX_OPERAND);
+				strncpy(src, regString, MAX_OPERAND);
 			}
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
@@ -300,6 +299,220 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// mov imm to r/m
+		else if (instBuffer[0] >> 1 == 0b1100011) {
+
+			char rmString[MAX_OPERAND] = {0};
+			char immString[11] = {0};
+			char *sizeSpecifier[2] = {"byte", "word"};
+			u8 w = instBuffer[0] & 1;
+			u8 mod = instBuffer[1] >> 6;
+			u8 rm = instBuffer[1] & 0b111;
+			u8 readIndex = 2;
+			u16 imm = 0;
+
+			switch (mod) {
+				case 0:
+					switch (rm) {
+						case 0:
+							strncpy(rmString, "[bx + si]", 10);
+							break;
+						case 1:
+							strncpy(rmString, "[bx + di]", 10);
+							break;
+						case 2:
+							strncpy(rmString, "[bp + si]", 10);
+							break;
+						case 3:
+							strncpy(rmString, "[bp + di]", 10);
+							break;
+						case 4:
+							strncpy(rmString, "[si]", 5);
+							break;
+						case 5:
+							strncpy(rmString, "[di]", 5);
+							break;
+						case 6:
+							readIndex += 2;
+							bytesRead = read(inputFD, &instBuffer[2], 2);
+							if (bytesRead != 2) {
+								logFatal(inputFD, outputFD, "Error reading the input file");
+							}
+							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
+							break;
+						case 7:
+							strncpy(rmString, "[bx]", 5);
+							break;
+					}
+					break;
+				case 1: {
+					readIndex += 1;
+					bytesRead = read(inputFD, &instBuffer[2], 1);
+					if (bytesRead != 1) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i8 disp = instBuffer[2];
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
+					break;
+				}
+				case 2: {
+					readIndex += 2;
+					bytesRead = read(inputFD, &instBuffer[2], 2);
+					if (bytesRead != 2) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
+					break;
+				}
+				case 3:
+					if (w) {
+						switch (rm) {
+							case 0:
+								strncpy(rmString, "ax", 3);
+								break;
+							case 1:
+								strncpy(rmString, "cx", 3);
+								break;
+							case 2:
+								strncpy(rmString, "dx", 3);
+								break;
+							case 3:
+								strncpy(rmString, "bx", 3);
+								break;
+							case 4:
+								strncpy(rmString, "sp", 3);
+								break;
+							case 5:
+								strncpy(rmString, "bp", 3);
+								break;
+							case 6:
+								strncpy(rmString, "si", 3);
+								break;
+							case 7:
+								strncpy(rmString, "di", 3);
+								break;
+						}
+					} else {
+						switch (rm) {
+							case 0:
+								strncpy(rmString, "al", 3);
+								break;
+							case 1:
+								strncpy(rmString, "cl", 3);
+								break;
+							case 2:
+								strncpy(rmString, "dl", 3);
+								break;
+							case 3:
+								strncpy(rmString, "bl", 3);
+								break;
+							case 4:
+								strncpy(rmString, "ah", 3);
+								break;
+							case 5:
+								strncpy(rmString, "ch", 3);
+								break;
+							case 6:
+								strncpy(rmString, "dh", 3);
+								break;
+							case 7:
+								strncpy(rmString, "bh", 3);
+								break;
+						}
+					}
+							break;
+			}
+
+			if (w) {
+				bytesRead = read(inputFD, &instBuffer[readIndex], 2);
+				if (bytesRead != 2) {
+					logFatal(inputFD, outputFD, "Error reading the input file");
+				}
+				imm = instBuffer[readIndex] | (instBuffer[readIndex + 1] << 8);
+			} else {
+				bytesRead = read(inputFD, &instBuffer[readIndex], 1);
+				if (bytesRead != 1) {
+					logFatal(inputFD, outputFD, "Error reading the input file");
+				}
+				imm = instBuffer[readIndex];
+			}
+
+			if (mod == 0 && rm == 0b110) {
+				snprintf(immString, sizeof(immString), "%u", imm);
+			} else {
+				snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[w], imm);
+			}
+
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
