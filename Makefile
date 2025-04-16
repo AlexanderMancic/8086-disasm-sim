@@ -9,7 +9,7 @@ OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 
 .PHONY: default clean run tests test_single_reg_mov
 
-test: clean $(TARGET) test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp
+test: clean $(TARGET) test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp test_mem_to_reg_mov_16bit_disp
 
 test_single_reg_mov:
 	nasm -f bin asm/listing_0037_single_register_mov.asm -o bin/input
@@ -46,6 +46,12 @@ test_mem_to_reg_mov_8bit_disp:
 	cmp bin/input bin/output
 	echo "PASS: mem to reg mov (8bit disp)"
 
+test_mem_to_reg_mov_16bit_disp:
+	nasm -f bin asm/mem_to_reg_mov_16bit_disp.asm -o bin/input
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
+	nasm -f bin asm/output.asm -o bin/output
+	cmp bin/input bin/output
+	echo "PASS: mem to reg mov (16 bit disp)"
 clean:
 	rm -f obj/*.o bin/*
 

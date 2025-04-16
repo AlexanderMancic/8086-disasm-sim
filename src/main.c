@@ -11,7 +11,7 @@
 #include "logFatal.h"
 
 #define MAX_DST 3
-#define MAX_SRC 15
+#define MAX_SRC 17
 
 int main(int argc, char **argv) {
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		u8 instBuffer[3] = {0};
+		u8 instBuffer[4] = {0};
 		ssize_t bytesRead = read(inputFD, &instBuffer[0], 2);
 
 		if (bytesRead == 0) {
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
 							break;
 					}
 					break;
-				case 1:
+				case 1: {
 					bytesRead = read(inputFD, &instBuffer[2], 1);
 					if (bytesRead != 1) {
 						logFatal(inputFD, outputFD, "Error reading the input file");
@@ -186,13 +186,42 @@ int main(int argc, char **argv) {
 							break;
 					}
 					break;
-				case 2:
-					logFatal(
-						inputFD,
-						outputFD,
-						"Error: this version only supports movs in register or memory (without displacement) mode"
-					);
+				}
+				case 2: {
+					bytesRead = read(inputFD, &instBuffer[2], 2);
+					if (bytesRead != 2) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
 					break;
+				}
 				case 3:
 					if (w) {
 						switch (rm) {
