@@ -427,6 +427,28 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		}
+		// mov accumulator to memory
+		else if (instBuffer[0] >> 1 == 0b1010001) {
+
+			bytesRead = read(inputFD, &instBuffer[2], 1);
+			if (bytesRead != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
+
+			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
+			char addrString[6] = {0};
+			snprintf(addrString, sizeof(addrString), "%u", addr);
+
+			if (writeOutput(inputFD, outputFD, "mov [") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "], ax\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
 		else {
 			logFatal(inputFD, outputFD, "Error: Unknown opcode");
 		}
