@@ -12,6 +12,13 @@
 
 #define MAX_OPERAND 17
 
+static const char *regNamesW0[8] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
+static const char *regNamesW1[8] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
+
+static inline const char *getRegName(u8 reg, u8 w) {
+	return w ? regNamesW1[reg] : regNamesW0[reg];
+}
+
 int main(int argc, char **argv) {
 
 	if (argc != 3) {
@@ -62,61 +69,7 @@ int main(int argc, char **argv) {
 			u8 mod = instBuffer[1] >> 6;
 			u8 rm = instBuffer[1] & 0b111;
 
-			if (w) {
-				switch (reg) {
-					case 0:
-						strncpy(regString, "ax", 3);
-						break;
-					case 1:
-						strncpy(regString, "cx", 3);
-						break;
-					case 2:
-						strncpy(regString, "dx", 3);
-						break;
-					case 3:
-						strncpy(regString, "bx", 3);
-						break;
-					case 4:
-						strncpy(regString, "sp", 3);
-						break;
-					case 5:
-						strncpy(regString, "bp", 3);
-						break;
-					case 6:
-						strncpy(regString, "si", 3);
-						break;
-					case 7:
-						strncpy(regString, "di", 3);
-						break;
-				}
-			} else {
-				switch (reg) {
-					case 0:
-						strncpy(regString, "al", 3);
-						break;
-					case 1:
-						strncpy(regString, "cl", 3);
-						break;
-					case 2:
-						strncpy(regString, "dl", 3);
-						break;
-					case 3:
-						strncpy(regString, "bl", 3);
-						break;
-					case 4:
-						strncpy(regString, "ah", 3);
-						break;
-					case 5:
-						strncpy(regString, "ch", 3);
-						break;
-					case 6:
-						strncpy(regString, "dh", 3);
-						break;
-					case 7:
-						strncpy(regString, "bh", 3);
-						break;
-				}
-			}
+			strncpy(regString, getRegName(reg, w), 3);
 
 			switch (mod) {
 				case 0:
@@ -223,62 +176,8 @@ int main(int argc, char **argv) {
 					break;
 				}
 				case 3:
-					if (w) {
-						switch (rm) {
-							case 0:
-								strncpy(rmString, "ax", 3);
-								break;
-							case 1:
-								strncpy(rmString, "cx", 3);
-								break;
-							case 2:
-								strncpy(rmString, "dx", 3);
-								break;
-							case 3:
-								strncpy(rmString, "bx", 3);
-								break;
-							case 4:
-								strncpy(rmString, "sp", 3);
-								break;
-							case 5:
-								strncpy(rmString, "bp", 3);
-								break;
-							case 6:
-								strncpy(rmString, "si", 3);
-								break;
-							case 7:
-								strncpy(rmString, "di", 3);
-								break;
-						}
-					} else {
-						switch (rm) {
-							case 0:
-								strncpy(rmString, "al", 3);
-								break;
-							case 1:
-								strncpy(rmString, "cl", 3);
-								break;
-							case 2:
-								strncpy(rmString, "dl", 3);
-								break;
-							case 3:
-								strncpy(rmString, "bl", 3);
-								break;
-							case 4:
-								strncpy(rmString, "ah", 3);
-								break;
-							case 5:
-								strncpy(rmString, "ch", 3);
-								break;
-							case 6:
-								strncpy(rmString, "dh", 3);
-								break;
-							case 7:
-								strncpy(rmString, "bh", 3);
-								break;
-						}
-					}
-							break;
+					strncpy(rmString, getRegName(rm, w), 3);
+					break;
 			}
 
 			if (d) {
@@ -425,62 +324,8 @@ int main(int argc, char **argv) {
 					break;
 				}
 				case 3:
-					if (w) {
-						switch (rm) {
-							case 0:
-								strncpy(rmString, "ax", 3);
-								break;
-							case 1:
-								strncpy(rmString, "cx", 3);
-								break;
-							case 2:
-								strncpy(rmString, "dx", 3);
-								break;
-							case 3:
-								strncpy(rmString, "bx", 3);
-								break;
-							case 4:
-								strncpy(rmString, "sp", 3);
-								break;
-							case 5:
-								strncpy(rmString, "bp", 3);
-								break;
-							case 6:
-								strncpy(rmString, "si", 3);
-								break;
-							case 7:
-								strncpy(rmString, "di", 3);
-								break;
-						}
-					} else {
-						switch (rm) {
-							case 0:
-								strncpy(rmString, "al", 3);
-								break;
-							case 1:
-								strncpy(rmString, "cl", 3);
-								break;
-							case 2:
-								strncpy(rmString, "dl", 3);
-								break;
-							case 3:
-								strncpy(rmString, "bl", 3);
-								break;
-							case 4:
-								strncpy(rmString, "ah", 3);
-								break;
-							case 5:
-								strncpy(rmString, "ch", 3);
-								break;
-							case 6:
-								strncpy(rmString, "dh", 3);
-								break;
-							case 7:
-								strncpy(rmString, "bh", 3);
-								break;
-						}
-					}
-							break;
+					strncpy(rmString, getRegName(rm, w), 3);
+					break;
 			}
 
 			if (w) {
@@ -536,64 +381,11 @@ int main(int argc, char **argv) {
 				}
 
 				imm = instBuffer[1] | (instBuffer[2] << 8);
-
-				switch (reg) {
-					case 0:
-						strncpy(regString, "ax", 3);
-						break;
-					case 1:
-						strncpy(regString, "cx", 3);
-						break;
-					case 2:
-						strncpy(regString, "dx", 3);
-						break;
-					case 3:
-						strncpy(regString, "bx", 3);
-						break;
-					case 4:
-						strncpy(regString, "sp", 3);
-						break;
-					case 5:
-						strncpy(regString, "bp", 3);
-						break;
-					case 6:
-						strncpy(regString, "si", 3);
-						break;
-					case 7:
-						strncpy(regString, "di", 3);
-						break;
-				}
 			} else {
-
 				imm = instBuffer[1];
-
-				switch (reg) {
-					case 0:
-						strncpy(regString, "al", 3);
-						break;
-					case 1:
-						strncpy(regString, "cl", 3);
-						break;
-					case 2:
-						strncpy(regString, "dl", 3);
-						break;
-					case 3:
-						strncpy(regString, "bl", 3);
-						break;
-					case 4:
-						strncpy(regString, "ah", 3);
-						break;
-					case 5:
-						strncpy(regString, "ch", 3);
-						break;
-					case 6:
-						strncpy(regString, "dh", 3);
-						break;
-					case 7:
-						strncpy(regString, "bh", 3);
-						break;
-				}
 			}
+
+			strncpy(regString, getRegName(reg, w), 3);
 
 			snprintf(immString, sizeof(immString), "%u", imm);
 
