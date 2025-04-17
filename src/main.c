@@ -14,10 +14,20 @@
 
 static const char *regNamesW0[8] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
 static const char *regNamesW1[8] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
-
 static inline const char *getRegName(u8 reg, u8 w) {
 	return w ? regNamesW1[reg] : regNamesW0[reg];
 }
+
+static const char *arithMnemonics[8] = {
+	"add",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"sub",
+	NULL,
+	"cmp"
+};
 
 int main(int argc, char **argv) {
 
@@ -448,6 +458,162 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, ", ax\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+		}
+		// add/sub/cmp with/and reg to either
+		else if ((instBuffer[0] & 0b11000100) == 0) {
+
+			u8 arithOpcode = instBuffer[0] >> 3;
+			u8 d = (instBuffer[0] >> 1) & 1;
+			u8 w = instBuffer[0] & 1;
+			u8 mod = instBuffer[1] >> 6;
+			u8 reg = (instBuffer[1] >> 3) & 0b111;
+			u8 rm = instBuffer[1] & 0b111;
+			char regString[3] = {0};
+			char rmString[MAX_OPERAND] = {0};
+			char arithMnemonic[4] = {0};
+			char dst[MAX_OPERAND] = {0};
+			char src[MAX_OPERAND] = {0};
+
+			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
+			strncpy(regString, getRegName(reg, w), 3);
+
+			switch (mod) {
+				case 0:
+					switch (rm) {
+						case 0:
+							strncpy(rmString, "[bx + si]", 10);
+							break;
+						case 1:
+							strncpy(rmString, "[bx + di]", 10);
+							break;
+						case 2:
+							strncpy(rmString, "[bp + si]", 10);
+							break;
+						case 3:
+							strncpy(rmString, "[bp + di]", 10);
+							break;
+						case 4:
+							strncpy(rmString, "[si]", 5);
+							break;
+						case 5:
+							strncpy(rmString, "[di]", 5);
+							break;
+						case 6:
+							bytesRead = read(inputFD, &instBuffer[2], 2);
+							if (bytesRead != 2) {
+								logFatal(inputFD, outputFD, "Error reading the input file");
+							}
+							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
+							break;
+						case 7:
+							strncpy(rmString, "[bx]", 5);
+							break;
+					}
+					break;
+				case 1: {
+					bytesRead = read(inputFD, &instBuffer[2], 1);
+					if (bytesRead != 1) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i8 disp = instBuffer[2];
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
+					break;
+				}
+				case 2: {
+					bytesRead = read(inputFD, &instBuffer[2], 2);
+					if (bytesRead != 2) {
+						logFatal(inputFD, outputFD, "Error reading the input file");
+					}
+					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
+
+					switch (rm) {
+						case 0:
+							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
+							break;
+						case 1:
+							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
+							break;
+						case 2:
+							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
+							break;
+						case 3:
+							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
+							break;
+						case 4:
+							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
+							break;
+						case 5:
+							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
+							break;
+						case 6:
+							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
+							break;
+						case 7:
+							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
+							break;
+					}
+					break;
+				}
+				case 3:
+					strncpy(rmString, getRegName(rm, w), 3);
+					break;
+			}
+
+
+			if (d) {
+				strncpy(dst, regString, MAX_OPERAND);
+				strncpy(src, rmString, MAX_OPERAND);
+			} else {
+				strncpy(dst, rmString, MAX_OPERAND);
+				strncpy(src, regString, MAX_OPERAND);
+			}
+
+			if (writeOutput(inputFD, outputFD, arithMnemonic) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+
 		}
 		else {
 			logFatal(inputFD, outputFD, "Error: Unknown opcode");
