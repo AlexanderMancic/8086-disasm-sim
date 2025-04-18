@@ -9,16 +9,11 @@
 #include "types.h"
 #include "writeOutput.h"
 #include "logFatal.h"
+#include "getRegString.h"
+#include "constants.h"
+#include "getRMstring.h"
 
-#define MAX_OPERAND 17
-
-static const char *regNamesW0[8] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
-static const char *regNamesW1[8] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
-static inline const char *getRegName(u8 reg, u8 w) {
-	return w ? regNamesW1[reg] : regNamesW0[reg];
-}
-
-static const char *arithMnemonics[8] = {
+static const char *const arithMnemonics[8] = {
 	"add",
 	NULL,
 	NULL,
@@ -79,115 +74,10 @@ int main(int argc, char **argv) {
 			u8 mod = instBuffer[1] >> 6;
 			u8 rm = instBuffer[1] & 0b111;
 
-			strncpy(regString, getRegName(reg, w), 3);
+			strncpy(regString, getRegString(reg, w), 3);
 
-			switch (mod) {
-				case 0:
-					switch (rm) {
-						case 0:
-							strncpy(rmString, "[bx + si]", 10);
-							break;
-						case 1:
-							strncpy(rmString, "[bx + di]", 10);
-							break;
-						case 2:
-							strncpy(rmString, "[bp + si]", 10);
-							break;
-						case 3:
-							strncpy(rmString, "[bp + di]", 10);
-							break;
-						case 4:
-							strncpy(rmString, "[si]", 5);
-							break;
-						case 5:
-							strncpy(rmString, "[di]", 5);
-							break;
-						case 6:
-							bytesRead = read(inputFD, &instBuffer[2], 2);
-							if (bytesRead != 2) {
-								logFatal(inputFD, outputFD, "Error reading the input file");
-							}
-							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
-							break;
-						case 7:
-							strncpy(rmString, "[bx]", 5);
-							break;
-					}
-					break;
-				case 1: {
-					bytesRead = read(inputFD, &instBuffer[2], 1);
-					if (bytesRead != 1) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i8 disp = instBuffer[2];
-
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 2: {
-					bytesRead = read(inputFD, &instBuffer[2], 2);
-					if (bytesRead != 2) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 3:
-					strncpy(rmString, getRegName(rm, w), 3);
-					break;
+			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
 			if (d) {
@@ -226,116 +116,14 @@ int main(int argc, char **argv) {
 			u8 readIndex = 2;
 			u16 imm = 0;
 
-			switch (mod) {
-				case 0:
-					switch (rm) {
-						case 0:
-							strncpy(rmString, "[bx + si]", 10);
-							break;
-						case 1:
-							strncpy(rmString, "[bx + di]", 10);
-							break;
-						case 2:
-							strncpy(rmString, "[bp + si]", 10);
-							break;
-						case 3:
-							strncpy(rmString, "[bp + di]", 10);
-							break;
-						case 4:
-							strncpy(rmString, "[si]", 5);
-							break;
-						case 5:
-							strncpy(rmString, "[di]", 5);
-							break;
-						case 6:
-							readIndex += 2;
-							bytesRead = read(inputFD, &instBuffer[2], 2);
-							if (bytesRead != 2) {
-								logFatal(inputFD, outputFD, "Error reading the input file");
-							}
-							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
-							break;
-						case 7:
-							strncpy(rmString, "[bx]", 5);
-							break;
-					}
-					break;
-				case 1: {
-					readIndex += 1;
-					bytesRead = read(inputFD, &instBuffer[2], 1);
-					if (bytesRead != 1) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i8 disp = instBuffer[2];
+			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
+			}
 
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 2: {
-					readIndex += 2;
-					bytesRead = read(inputFD, &instBuffer[2], 2);
-					if (bytesRead != 2) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 3:
-					strncpy(rmString, getRegName(rm, w), 3);
-					break;
+			if (mod == 2 || (rm == 0b110 && mod == 0)) {
+				readIndex += 2;
+			} else if (mod == 1) {
+				readIndex += 1;
 			}
 
 			if (w) {
@@ -395,7 +183,7 @@ int main(int argc, char **argv) {
 				imm = instBuffer[1];
 			}
 
-			strncpy(regString, getRegName(reg, w), 3);
+			strncpy(regString, getRegString(reg, w), 3);
 
 			snprintf(immString, sizeof(immString), "%u", imm);
 
@@ -475,117 +263,11 @@ int main(int argc, char **argv) {
 			char src[MAX_OPERAND] = {0};
 
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
-			strncpy(regString, getRegName(reg, w), 3);
+			strncpy(regString, getRegString(reg, w), 3);
 
-			switch (mod) {
-				case 0:
-					switch (rm) {
-						case 0:
-							strncpy(rmString, "[bx + si]", 10);
-							break;
-						case 1:
-							strncpy(rmString, "[bx + di]", 10);
-							break;
-						case 2:
-							strncpy(rmString, "[bp + si]", 10);
-							break;
-						case 3:
-							strncpy(rmString, "[bp + di]", 10);
-							break;
-						case 4:
-							strncpy(rmString, "[si]", 5);
-							break;
-						case 5:
-							strncpy(rmString, "[di]", 5);
-							break;
-						case 6:
-							bytesRead = read(inputFD, &instBuffer[2], 2);
-							if (bytesRead != 2) {
-								logFatal(inputFD, outputFD, "Error reading the input file");
-							}
-							i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-							snprintf(rmString, sizeof(rmString), "[%+d]", disp);
-							break;
-						case 7:
-							strncpy(rmString, "[bx]", 5);
-							break;
-					}
-					break;
-				case 1: {
-					bytesRead = read(inputFD, &instBuffer[2], 1);
-					if (bytesRead != 1) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i8 disp = instBuffer[2];
-
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 2: {
-					bytesRead = read(inputFD, &instBuffer[2], 2);
-					if (bytesRead != 2) {
-						logFatal(inputFD, outputFD, "Error reading the input file");
-					}
-					i16 disp = instBuffer[2] | (instBuffer[3] << 8);
-
-					switch (rm) {
-						case 0:
-							snprintf(rmString, sizeof(rmString), "[bx + si %+d]", disp);
-							break;
-						case 1:
-							snprintf(rmString, sizeof(rmString), "[bx + di %+d]", disp);
-							break;
-						case 2:
-							snprintf(rmString, sizeof(rmString), "[bp + si %+d]", disp);
-							break;
-						case 3:
-							snprintf(rmString, sizeof(rmString), "[bp + di %+d]", disp);
-							break;
-						case 4:
-							snprintf(rmString, sizeof(rmString), "[si %+d]", disp);
-							break;
-						case 5:
-							snprintf(rmString, sizeof(rmString), "[di %+d]", disp);
-							break;
-						case 6:
-							snprintf(rmString, sizeof(rmString), "[bp %+d]", disp);
-							break;
-						case 7:
-							snprintf(rmString, sizeof(rmString), "[bx %+d]", disp);
-							break;
-					}
-					break;
-				}
-				case 3:
-					strncpy(rmString, getRegName(rm, w), 3);
-					break;
+			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
-
 
 			if (d) {
 				strncpy(dst, regString, MAX_OPERAND);
