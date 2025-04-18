@@ -1,7 +1,8 @@
-#include "logFatal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "logFatal.h"
 
 void logFatal(int inputFD, int outputFD, char *errMessage) {
 	fprintf(stderr, "%s\n", errMessage);

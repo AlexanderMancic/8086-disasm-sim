@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "types.h"
+#include "getRMstring.h"
 #include "getRegString.h"
 #include "constants.h"
 
