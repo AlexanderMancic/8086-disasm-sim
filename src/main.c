@@ -12,6 +12,7 @@
 #include "getRegString.h"
 #include "constants.h"
 #include "getRMstring.h"
+#include "getImm.h"
 
 static const char *const arithMnemonics[8] = {
 	"add",
@@ -53,16 +54,20 @@ int main(int argc, char **argv) {
 	while (true) {
 
 		u8 instBuffer[6] = {0};
-		ssize_t bytesRead = read(inputFD, &instBuffer[0], 2);
+		ssize_t bytesRead = read(inputFD, &instBuffer, 1);
 
 		if (bytesRead == 0) {
 			break;
-		} else if (bytesRead != 2) {
+		} else if (bytesRead != 1) {
 			logFatal(inputFD, outputFD, "Error reading the input file");
 		}
 
 		// mov r/m to/from reg
 		if (instBuffer[0] >> 2 == 0b100010) {
+
+			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
 
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
@@ -107,37 +112,24 @@ int main(int argc, char **argv) {
 		// mov imm to r/m
 		else if (instBuffer[0] >> 1 == 0b1100011) {
 
+			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
+
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
 			char *sizeSpecifier[2] = {"byte", "word"};
 			u8 w = instBuffer[0] & 1;
 			u8 mod = instBuffer[1] >> 6;
 			u8 rm = instBuffer[1] & 0b111;
-			u8 readIndex = 2;
-			u16 imm = 0;
 
 			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			if (mod == 2 || (rm == 0b110 && mod == 0)) {
-				readIndex += 2;
-			} else if (mod == 1) {
-				readIndex += 1;
-			}
-
-			if (w) {
-				bytesRead = read(inputFD, &instBuffer[readIndex], 2);
-				if (bytesRead != 2) {
-					logFatal(inputFD, outputFD, "Error reading the input file");
-				}
-				imm = instBuffer[readIndex] | (instBuffer[readIndex + 1] << 8);
-			} else {
-				bytesRead = read(inputFD, &instBuffer[readIndex], 1);
-				if (bytesRead != 1) {
-					logFatal(inputFD, outputFD, "Error reading the input file");
-				}
-				imm = instBuffer[readIndex];
+			i32 imm = getImm(w, inputFD);
+			if (imm == -1) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
 
 			if (mod == 0 && rm == 0b110) {
@@ -169,23 +161,15 @@ int main(int argc, char **argv) {
 			char immString[6] = {0};
 			u8 reg = instBuffer[0] & 0b111;
 			u8 w = (instBuffer[0] >> 3) & 1;
-			u16 imm = 0;
 
-			if (w) {
-
-				bytesRead = read(inputFD, &instBuffer[2], 1);
-				if (bytesRead != 1) {
-					logFatal(inputFD, outputFD, "Error reading the input file");
-				}
-
-				imm = instBuffer[1] | (instBuffer[2] << 8);
-			} else {
-				imm = instBuffer[1];
+			i32 imm = getImm(w, inputFD);
+			if (imm == -1) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
 
 			strncpy(regString, getRegString(reg, w), 3);
 
-			snprintf(immString, sizeof(immString), "%u", imm);
+			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -205,6 +189,10 @@ int main(int argc, char **argv) {
 		}
 		// mov memory to accumulator
 		else if (instBuffer[0] >> 1 == 0b1010000) {
+
+			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
 
 			bytesRead = read(inputFD, &instBuffer[2], 1);
 			if (bytesRead != 1) {
@@ -228,14 +216,13 @@ int main(int argc, char **argv) {
 		// mov accumulator to memory
 		else if (instBuffer[0] >> 1 == 0b1010001) {
 
-			bytesRead = read(inputFD, &instBuffer[2], 1);
-			if (bytesRead != 1) {
+			if (read(inputFD, &instBuffer[1], 2) != 2) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
 
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
 			char addrString[8] = {0};
-			snprintf(addrString, sizeof(addrString), "[%u]", addr);
+			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -249,6 +236,10 @@ int main(int argc, char **argv) {
 		}
 		// add/sub/cmp with/and reg to either
 		else if ((instBuffer[0] & 0b11000100) == 0) {
+
+			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
 
 			u8 arithOpcode = instBuffer[0] >> 3;
 			u8 d = (instBuffer[0] >> 1) & 1;
