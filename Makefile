@@ -19,7 +19,7 @@ TEST_LIST := \
 	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
 	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
 	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
-	test_all_loops
+	test_all_loops test_listing_41
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -95,6 +95,9 @@ test_all_conditional_jumps:
 
 test_all_loops:
 	$(call run_test,./asm/all_loops.asm)
+
+test_listing_41:
+	$(call run_test,./asm/listing_0041_add_sub_cmp_jnz.asm)
 
 clean:
 	@echo "Cleaning project..."
