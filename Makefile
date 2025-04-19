@@ -28,7 +28,8 @@ endef
 	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
 	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
 	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
-	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps
+	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
+	test_all_loops
 
 test: \
 	clean $(TARGET) \
@@ -39,7 +40,8 @@ test: \
 	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
 	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
 	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
-	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps
+	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
+	test_all_loops
 	@echo All tests passed
 
 test_single_reg_mov:
@@ -98,6 +100,9 @@ test_jnz:
 
 test_all_conditional_jumps:
 	$(call run_test,./asm/all_conditional_jumps.asm)
+
+test_all_loops:
+	$(call run_test,./asm/all_loops.asm)
 
 clean:
 	@echo "Cleaning project..."
