@@ -10,6 +10,17 @@ INPUT_BIN := ./bin/input
 OUTPUT_ASM := ./asm/output.asm
 OUTPUT_BIN := ./bin/output
 
+TEST_LIST := \
+	test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
+	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
+	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
+	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
+	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
+	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
+	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
+	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
+	test_all_loops
+
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
 	@# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
@@ -20,28 +31,9 @@ define run_test
 endef
 
 .PHONY: \
-	default clean run tests \
-	test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
-	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
-	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
-	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
-	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
-	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
-	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
-	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
-	test_all_loops
+	default clean run tests $(TEST_LIST)
 
-test: \
-	clean $(TARGET) \
-	test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
-	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
-	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
-	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
-	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
-	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
-	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
-	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
-	test_all_loops
+test: clean $(TARGET) $(TEST_LIST)
 	@echo All tests passed
 
 test_single_reg_mov:
