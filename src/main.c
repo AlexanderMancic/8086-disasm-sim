@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		u8 instBuffer[6] = {0};
+		u8 instBuffer[6];
 		ssize_t bytesRead = read(inputFD, &instBuffer, 1);
 
 		if (bytesRead == 0) {
@@ -190,20 +190,24 @@ int main(int argc, char **argv) {
 		// mov memory to accumulator
 		else if (instBuffer[0] >> 1 == 0b1010000) {
 
-			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+			if ((read(inputFD, &instBuffer[1], 2)) != 2) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
 
-			bytesRead = read(inputFD, &instBuffer[2], 1);
-			if (bytesRead != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
-
+			u8 w = instBuffer[0] & 1;
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
 			char addrString[8] = {0};
-			snprintf(addrString, sizeof(addrString), "[%u]", addr);
+			const char *const accumulatorString[2] = {"al", "ax"};
 
-			if (writeOutput(inputFD, outputFD, "mov ax, ") == EXIT_FAILURE) {
+			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
+
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
@@ -220,8 +224,11 @@ int main(int argc, char **argv) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
 
+			u8 w = instBuffer[0] & 1;
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
 			char addrString[8] = {0};
+			const char *const accumulatorString[2] = {"al", "ax"};
+
 			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
@@ -230,7 +237,13 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
-			if (writeOutput(inputFD, outputFD, ", ax\n") == EXIT_FAILURE) {
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 		}

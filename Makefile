@@ -26,7 +26,8 @@ endef
 	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
 	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
 	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
-	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm
+	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
+	test_non_wide_accumulator_to_mem_mov_and_vice_verca
 
 test: \
 	clean $(TARGET) \
@@ -35,7 +36,8 @@ test: \
 	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
 	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
 	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
-	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm
+	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
+	test_non_wide_accumulator_to_mem_mov_and_vice_verca
 	@echo All tests passed
 
 test_single_reg_mov:
@@ -82,6 +84,9 @@ test_add_sub_cmp_rm_reg:
 
 test_add_sub_cmp_imm_rm:
 	$(call run_test,./asm/add_sub_cmp_imm_rm.asm)
+
+test_non_wide_accumulator_to_mem_mov_and_vice_verca:
+	$(call run_test,./asm/non_wide_accumulator_to_mem_mov_and_vice_verca.asm)
 
 clean:
 	@echo "Cleaning project..."
