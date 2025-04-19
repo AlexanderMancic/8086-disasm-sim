@@ -1,140 +1,96 @@
-$(shell mkdir -p bin obj)
+CC := gcc
+CFLAGS := -Wall -Wextra -Werror -pedantic -Iinclude -std=c23 -g
+CFLAGS += -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wconversion
 
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror -pedantic -Iinclude -std=c23 -g
+TARGET := ./bin/program
+SRC := $(wildcard src/*.c)
+OBJ := $(patsubst src/%.c, obj/%.o, $(SRC))
 
-TARGET = bin/program
-SRC = $(wildcard src/*.c)
-OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
+INPUT_BIN := ./bin/input
+OUTPUT_ASM := ./asm/output.asm
+OUTPUT_BIN := ./bin/output
 
-.PHONY: default clean run tests test_single_reg_mov
+define run_test
+	@nasm -f bin $1 -o $(INPUT_BIN)
+	@# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
+	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
+	@nasm -f bin $(OUTPUT_ASM) -o $(OUTPUT_BIN)
+	@cmp $(INPUT_BIN) $(OUTPUT_BIN)
+	@echo "PASS: $@"
+endef
 
-test: \
-	clean $(TARGET) test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
+.PHONY: \
+	default clean run tests \
+	test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
 	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
 	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
 	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
 	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
 	test_listing_40 test_add_sub_cmp_rm_reg
 
+test: \
+	clean $(TARGET) \
+	test_single_reg_mov test_many_reg_mov test_imm_to_reg_mov \
+	test_mem_to_reg_mov_no_disp_no_direct test_mem_to_reg_mov_8bit_disp \
+	test_mem_to_reg_mov_16bit_disp test_address_as_destination \
+	test_listing_39 test_direct_address_mov test_imm_to_rm_mov \
+	test_mem_to_accumulator_mov test_accumulator_to_mem_mov \
+	test_listing_40 test_add_sub_cmp_rm_reg
+	@echo All tests passed
+
 test_single_reg_mov:
-	nasm -f bin asm/listing_0037_single_register_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: single register mov"
+	$(call run_test,./asm/listing_0037_single_register_mov.asm)
 
 test_many_reg_mov:
-	nasm -f bin asm/listing_0038_many_register_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: many register mov"
+	$(call run_test,./asm/listing_0038_many_register_mov.asm)
 
 test_imm_to_reg_mov:
-	nasm -f bin asm/imm_to_reg_movs.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: imm to register mov"
+	$(call run_test,./asm/imm_to_reg_movs.asm)
 
 test_mem_to_reg_mov_no_disp_no_direct:
-	nasm -f bin asm/mem_to_reg_mov_no_disp_no_direct.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: mem to reg mov (no displacement, no exception)"
+	$(call run_test,./asm/mem_to_reg_mov_no_disp_no_direct.asm)
 
 test_mem_to_reg_mov_8bit_disp:
-	nasm -f bin asm/mem_to_reg_mov_8bit_disp.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: mem to reg mov (8bit disp)"
+	$(call run_test,./asm/mem_to_reg_mov_8bit_disp.asm)
 
 test_mem_to_reg_mov_16bit_disp:
-	nasm -f bin asm/mem_to_reg_mov_16bit_disp.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: mem to reg mov (16 bit disp)"
+	$(call run_test,./asm/mem_to_reg_mov_16bit_disp.asm)
 
 test_address_as_destination:
-	nasm -f bin asm/address_as_destination.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: address as destination"
+	$(call run_test,./asm/address_as_destination.asm)
 
 test_listing_39:
-	nasm -f bin ./asm/listing_0039_more_movs.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: listing 39"
+	$(call run_test,./asm/listing_0039_more_movs.asm)
 
 test_direct_address_mov:
-	nasm -f bin ./asm/direct_address_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: direct address mov"
+	$(call run_test,./asm/direct_address_mov.asm)
 
 test_imm_to_rm_mov:
-	nasm -f bin ./asm/imm_to_rm_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: imm to rm mov"
+	$(call run_test,./asm/imm_to_rm_mov.asm)
 
 test_mem_to_accumulator_mov:
-	nasm -f bin ./asm/mem_to_accumulator_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: mem to accumulator mov"
+	$(call run_test,./asm/mem_to_accumulator_mov.asm)
 
 test_accumulator_to_mem_mov:
-	nasm -f bin ./asm/accumulator_to_mem_mov.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: accumulator to mem mov"
+	$(call run_test,./asm/accumulator_to_mem_mov.asm)
 
 test_listing_40:
-	nasm -f bin ./asm/listing_0040_challenge_movs.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: listing 40"
+	$(call run_test,./asm/listing_0040_challenge_movs.asm)
 
 test_add_sub_cmp_rm_reg:
-	nasm -f bin ./asm/listing_0040_challenge_movs.asm -o bin/input
-	# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./$(TARGET) bin/input asm/output.asm
-	./$(TARGET) bin/input asm/output.asm
-	nasm -f bin asm/output.asm -o bin/output
-	cmp bin/input bin/output
-	echo "PASS: add/sub/cmp reg with/to rm to either"
+	$(call run_test,./asm/listing_0040_challenge_movs.asm)
 
 clean:
-	rm -f obj/*.o bin/*
+	@echo "Cleaning project..."
+	@rm -rf ./obj ./bin
+	@rm -f ./asm/output.asm
 
-$(TARGET): $(OBJ)
-	$(CC) -o $@ $^
+bin obj:
+	@mkdir -p $@
 
-obj/%.o: src/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(TARGET): $(OBJ) | bin
+	@$(CC) $(CFLAGS) -o $@ $^
+
+obj/%.o: src/%.c | obj
+	@$(CC) $(CFLAGS) -c $< -o $@
 

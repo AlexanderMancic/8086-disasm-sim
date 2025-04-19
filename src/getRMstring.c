@@ -6,6 +6,7 @@
 #include "getRMstring.h"
 #include "getRegString.h"
 #include "constants.h"
+#include "types.h"
 
 u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
 	const char *const effectiveAddressBase[8] = {"bx + si", "bx + di", "bp + si", "bp + di", "si", "di", "bp", "bx"};
@@ -31,7 +32,7 @@ u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
 				return EXIT_FAILURE;
 			}
 
-			i8 disp = dispBuffer[0];
+			i8 disp = (i8)dispBuffer[0];
 			snprintf(rmString, MAX_OPERAND, "[%s %+hhd]", effectiveAddressBase[rm], disp);
 			return EXIT_SUCCESS;
 		}
