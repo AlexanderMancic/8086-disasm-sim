@@ -403,7 +403,247 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		}
-		// jnz
+		// je / jz
+		else if (instBuffer[0] == 0b01110100) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jz IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jl / jnge
+		else if (instBuffer[0] == 0b01111100) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jl IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jle / jng
+		else if (instBuffer[0] == 0b01111110) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jle IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jb / jnae
+		else if (instBuffer[0] == 0b01110010) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jb IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jbe / jna
+		else if (instBuffer[0] == 0b01110110) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jbe IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jp / jpe
+		else if (instBuffer[0] == 0b01111010) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jp IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jo
+		else if (instBuffer[0] == 0b01110000) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jo IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// js
+		else if (instBuffer[0] == 0b01111000) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "js IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jne / jnz
 		else if (instBuffer[0] == 0b01110101) {
 
 			i32 imm = getImm(0, inputFD, &ip);
@@ -432,7 +672,216 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+		}
+		// jnl / jge
+		else if (instBuffer[0] == 0b01111101) {
 
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jge IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jnle / jg
+		else if (instBuffer[0] == 0b01111111) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jg IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jnb / jae
+		else if (instBuffer[0] == 0b01110011) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jae IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jnbe / ja
+		else if (instBuffer[0] == 0b01110111) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "ja IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jnp / jpo
+		else if (instBuffer[0] == 0b01111011) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jnp IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jno
+		else if (instBuffer[0] == 0b01110001) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jno IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jns
+		else if (instBuffer[0] == 0b01111001) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jns IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
 		}
 		else {
 			fprintf(stderr, "Byte: 0x%x\n", instBuffer[0]);
