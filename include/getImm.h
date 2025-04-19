@@ -2,4 +2,4 @@
 #include "types.h"
 
 [[nodiscard]]
-i32 getImm(u8 w, int inputFD);
+i32 getImm(u8 w, int inputFD, u32 *ip);

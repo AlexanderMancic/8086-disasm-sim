@@ -8,7 +8,7 @@
 #include "constants.h"
 #include "types.h"
 
-u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
+u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD, u32 *ip) {
 	const char *const effectiveAddressBase[8] = {"bx + si", "bx + di", "bp + si", "bp + di", "si", "di", "bp", "bx"};
 	u8 dispBuffer[2];
 
@@ -18,6 +18,7 @@ u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
 				if ((read(inputFD, &dispBuffer, 2)) != 2) {
 					return EXIT_FAILURE;
 				}
+				*ip += 2;
 
 				u16 directAddress = dispBuffer[0] | (dispBuffer[1] << 8);
 				snprintf(rmString, MAX_OPERAND, "[%hu]", directAddress);
@@ -31,6 +32,7 @@ u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
 			if ((read(inputFD, &dispBuffer, 1)) != 1) {
 				return EXIT_FAILURE;
 			}
+			*ip += 1;
 
 			i8 disp = (i8)dispBuffer[0];
 			snprintf(rmString, MAX_OPERAND, "[%s %+hhd]", effectiveAddressBase[rm], disp);
@@ -40,6 +42,7 @@ u8 getRMstring(u8 mod, u8 rm, u8 w, char *rmString, int inputFD) {
 			if ((read(inputFD, &dispBuffer, 2)) != 2) {
 				return EXIT_FAILURE;
 			}
+			*ip += 2;
 
 			i16 disp = dispBuffer[0] | (dispBuffer[1] << 8);
 			snprintf(rmString, MAX_OPERAND, "[%s %+hd]", effectiveAddressBase[rm], disp);

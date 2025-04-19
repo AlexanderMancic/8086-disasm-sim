@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	u32 ip = 0;
+
 	while (true) {
 
 		u8 instBuffer[6];
@@ -62,12 +64,22 @@ int main(int argc, char **argv) {
 			logFatal(inputFD, outputFD, "Error reading the input file");
 		}
 
+		char label[16] = {0};
+		snprintf(label, sizeof(label), "IP_%u:\n", ip);
+		if (writeOutput(inputFD, outputFD, label) == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+
+		ip += (u32)bytesRead;
+
 		// mov r/m to/from reg
 		if (instBuffer[0] >> 2 == 0b100010) {
 
 			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+
+			ip += 1;
 
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
@@ -81,7 +93,7 @@ int main(int argc, char **argv) {
 
 			strncpy(regString, getRegString(reg, w), 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
@@ -115,6 +127,7 @@ int main(int argc, char **argv) {
 			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+			ip += 1;
 
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
@@ -123,11 +136,11 @@ int main(int argc, char **argv) {
 			u8 mod = instBuffer[1] >> 6;
 			u8 rm = instBuffer[1] & 0b111;
 
-			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			i32 imm = getImm(w, inputFD);
+			i32 imm = getImm(w, inputFD, &ip);
 			if (imm == -1) {
 				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
@@ -162,7 +175,7 @@ int main(int argc, char **argv) {
 			u8 reg = instBuffer[0] & 0b111;
 			u8 w = (instBuffer[0] >> 3) & 1;
 
-			i32 imm = getImm(w, inputFD);
+			i32 imm = getImm(w, inputFD, &ip);
 			if (imm == -1) {
 				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
@@ -193,6 +206,7 @@ int main(int argc, char **argv) {
 			if ((read(inputFD, &instBuffer[1], 2)) != 2) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+			ip += 2;
 
 			u8 w = instBuffer[0] & 1;
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
@@ -223,6 +237,7 @@ int main(int argc, char **argv) {
 			if (read(inputFD, &instBuffer[1], 2) != 2) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+			ip += 2;
 
 			u8 w = instBuffer[0] & 1;
 			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
@@ -253,6 +268,7 @@ int main(int argc, char **argv) {
 			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+			ip += 1;
 
 			u8 arithOpcode = instBuffer[0] >> 3;
 			u8 d = (instBuffer[0] >> 1) & 1;
@@ -269,7 +285,7 @@ int main(int argc, char **argv) {
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
 			strncpy(regString, getRegString(reg, w), 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
@@ -307,6 +323,7 @@ int main(int argc, char **argv) {
 			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
 				logFatal(inputFD, outputFD, "Error reading the input file");
 			}
+			ip += 1;
 
 			u8 s = (instBuffer[0] >> 1) & 1;
 			u8 w = instBuffer[0] & 1;
@@ -321,11 +338,11 @@ int main(int argc, char **argv) {
 
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			i32 imm = getImm(sw, inputFD);
+			i32 imm = getImm(sw, inputFD, &ip);
 			if (imm == -1) {
 				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
@@ -346,6 +363,70 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}	
+		}
+		// add/sub/cmp imm to/from/with accumulator
+		else if ((instBuffer[0] & 0b11000110) == 0b00000100) {
+
+			u8 w = instBuffer[0] & 1;
+			u8 arithOpcode = (instBuffer[0] >> 3) & 0b111;
+			char immString[6] = {0};
+			const char *const accumulatorString[2] = {"al", "ax"};
+
+			i32 imm = getImm(w, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
+
+			if (writeOutput(inputFD, outputFD, (char *)arithMnemonics[arithOpcode]) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// jnz
+		else if (instBuffer[0] == 0b01110101) {
+
+			i32 imm = getImm(0, inputFD, &ip);
+			if (imm < 0) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+
+			i8 ip_inc8 = (i8)imm;
+			u32 jumpIP;
+			char jumpIPstring[11] = {0};
+
+			if (ip_inc8 < 0) {
+				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
+			} else {
+				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
+			}
+
+			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
+
+			if (writeOutput(inputFD, outputFD, "jnz IP_") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
