@@ -1,3 +1,5 @@
+bits 16
+
 ; taken from listing 41
 
 add bx, [bx+si]

@@ -1,7 +1,6 @@
-; taken from listing 39
-
 bits 16
 
+; taken from listing 39
 ; 8-bit immediate-to-register
 mov cl, 12
 mov ch, -12

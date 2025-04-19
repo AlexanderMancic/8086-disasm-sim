@@ -1,3 +1,5 @@
+bits 16
+
 ; taken from listing 40
 ; Direct address
 mov bp, [5]

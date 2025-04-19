@@ -1,3 +1,5 @@
+bits 16
+
 ; taken from listing 39
 ; Source address calculation
 mov al, [bx + si]

@@ -1,3 +1,5 @@
+bits 16
+
 ; taken from listing 40
 ; Explicit sizes
 mov [bp + di], byte 7
