@@ -288,7 +288,60 @@ int main(int argc, char **argv) {
 			}
 
 		}
+		// add/sub/cmp imm to/from/with r/m
+		else if (instBuffer[0] >> 2 == 0b100000) {
+
+			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
+
+			u8 s = (instBuffer[0] >> 1) & 1;
+			u8 w = instBuffer[0] & 1;
+			u8 sw = 1 ? w == 1 && s == 0 : 0;
+			u8 mod = instBuffer[1] >> 6;
+			u8 rm = instBuffer[1] & 0b111;
+			u8 arithOpcode = (instBuffer[1] >> 3) & 0b111;
+			char arithMnemonic[4] = {0};
+			char rmString[MAX_OPERAND] = {0};
+			char immString[11] = {0};
+			char *sizeSpecifier[2] = {"byte", "word"};
+
+			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
+
+			if (getRMstring(mod, rm, w, rmString, inputFD) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
+			}
+
+			i32 imm = getImm(sw, inputFD);
+			if (imm == -1) {
+				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			}
+			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
+
+			snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[w], imm);
+
+			if (writeOutput(inputFD, outputFD, arithMnemonic) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+
+		}
 		else {
+			fprintf(stderr, "Byte: 0x%x\n", instBuffer[0]);
 			logFatal(inputFD, outputFD, "Error: Unknown opcode");
 		}
 	}
