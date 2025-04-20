@@ -129,6 +129,41 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (mod == 3) {
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+
+				if (d) {
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[reg].value);
+					registers[reg].value = registers[rm].value;
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[reg].value);
+				} else {
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[rm].value);
+					registers[rm].value = registers[reg].value;
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[rm].value);
+				}
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
