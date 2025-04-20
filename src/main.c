@@ -409,6 +409,43 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		}
+		// mov sr to rm
+		else if (instBuffer[0] == 0b10001100) {
+
+			if (read(inputFD, &instBuffer[1], 1) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
+			ip += 1;
+
+			u8 mod = instBuffer[1] >> 6;
+			u8 sr = (instBuffer[1] >> 3) & 0b11;
+			u8 rm = instBuffer[1] & 0b111;
+			char rmString[MAX_OPERAND] = {0};
+			char srString[3] = {0};
+
+			if (getRMstring(mod, rm, 1, rmString, inputFD, &ip) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
+			}
+
+			strncpy(srString, segRegisters[sr].string, 3);
+
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
 		// add/sub/cmp with/and reg to either
 		else if ((instBuffer[0] & 0b11000100) == 0) {
 
