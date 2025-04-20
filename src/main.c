@@ -13,6 +13,7 @@
 #include "constants.h"
 #include "getRMstring.h"
 #include "getImm.h"
+#include "register.h"
 
 static const char *const arithMnemonics[8] = {
 	"add",
@@ -52,6 +53,17 @@ int main(int argc, char **argv) {
 	}
 
 	u32 ip = 0;
+
+	Register ax = {"ax", 0};
+	Register bx = {"bx", 0};
+	Register cx = {"cx", 0};
+	Register dx = {"dx", 0};
+	Register sp = {"sp", 0};
+	Register bp = {"bp", 0};
+	Register si = {"si", 0};
+	Register di = {"di", 0};
+
+	Register registers[8] = {ax, cx, dx, bx, sp, bp, si, di};
 
 	while (true) {
 
@@ -196,9 +208,38 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			char beforeRegValue[6] = {0};
+			char afterRegValue[6] = {0};
+
+			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[reg].value);
+			registers[reg].value = (u16)imm;
+			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[reg].value);
+
+			if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, regString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+
 		}
 		// mov memory to accumulator
 		else if (instBuffer[0] >> 1 == 0b1010000) {
@@ -1006,6 +1047,32 @@ int main(int argc, char **argv) {
 		else {
 			fprintf(stderr, "Byte: 0x%x\n", instBuffer[0]);
 			logFatal(inputFD, outputFD, "Error: Unknown opcode");
+		}
+	}
+
+	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	for (u8 i = 0; i < 8; i++) {
+
+		char regValueString[6] = {0};
+
+		snprintf(regValueString, sizeof(regValueString), "%hu", registers[i].value);
+
+		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, registers[i].string) == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, regValueString) == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
 		}
 	}
 
