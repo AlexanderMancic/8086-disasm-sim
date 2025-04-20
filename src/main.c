@@ -375,6 +375,36 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (mod == 3) {
+
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", segRegisters[sr].value);
+				segRegisters[sr].value = genRegisters[rm].value;
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", segRegisters[sr].value);
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
@@ -1126,7 +1156,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n") == EXIT_FAILURE) {
+	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n\n; General Purpose Registers\n") == EXIT_FAILURE) {
 		return EXIT_FAILURE;
 	}
 	for (u8 i = 0; i < 8; i++) {
@@ -1139,6 +1169,34 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 		if (writeOutput(inputFD, outputFD, genRegisters[i].string) == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, regValueString) == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+	}
+	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	if (writeOutput(inputFD, outputFD, "; Segment Registers:\n") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	for (u8 i = 0; i < 4; i++) {
+
+		char regValueString[6] = {0};
+
+		snprintf(regValueString, sizeof(regValueString), "%hu", segRegisters[i].value);
+
+		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
+			return EXIT_FAILURE;
+		}
+		if (writeOutput(inputFD, outputFD, segRegisters[i].string) == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
 		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
