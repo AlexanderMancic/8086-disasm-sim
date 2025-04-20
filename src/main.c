@@ -442,6 +442,35 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
+			if (mod == 3) {
+
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[rm].value);
+				genRegisters[rm].value = segRegisters[sr].value;
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[rm].value);
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
