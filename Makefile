@@ -34,12 +34,14 @@ define run_test
 endef
 
 .PHONY: \
-	default clean run tests $(DISASM_TEST_LIST)
+	default clean run tests $(DISASM_TEST_LIST) newline $(SIM_TEST_LIST)
 
-test: clean $(TARGET) $(DISASM_TEST_LIST) $(SIM_TEST_LIST)
+test: clean $(TARGET) $(DISASM_TEST_LIST) newline $(SIM_TEST_LIST)
+	@echo
 	@echo All tests passed
 
 test_single_reg_mov:
+	@echo
 	$(call run_test,./asm/disasm/listing_0037_single_register_mov.asm)
 
 test_many_reg_mov:
@@ -104,6 +106,9 @@ test_listing_41:
 
 test_rm_to_sr_mov:
 	$(call run_test,./asm/disasm/rm_to_sr_mov.asm)
+
+newline:
+	@echo
 
 test_sim_imm_to_reg_w_movs:
 	$(call run_test,./asm/sim/listing_0043_immediate_movs.asm)
