@@ -62,8 +62,13 @@ int main(int argc, char **argv) {
 	Register bp = {"bp", 0};
 	Register si = {"si", 0};
 	Register di = {"di", 0};
+	Register genRegisters[8] = {ax, cx, dx, bx, sp, bp, si, di};
 
-	Register registers[8] = {ax, cx, dx, bx, sp, bp, si, di};
+	Register es = {"es", 0};
+	Register cs = {"cs", 0};
+	Register ss = {"ss", 0};
+	Register ds = {"ds", 0};
+	Register segRegisters[4] = {es, cs, ss, ds};
 
 	while (true) {
 
@@ -135,13 +140,13 @@ int main(int argc, char **argv) {
 				char afterRegValue[6] = {0};
 
 				if (d) {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[reg].value);
-					registers[reg].value = registers[rm].value;
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[reg].value);
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[reg].value);
+					genRegisters[reg].value = genRegisters[rm].value;
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[reg].value);
 				} else {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[rm].value);
-					registers[rm].value = registers[reg].value;
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[rm].value);
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[rm].value);
+					genRegisters[rm].value = genRegisters[reg].value;
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[rm].value);
 				}
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
@@ -247,9 +252,9 @@ int main(int argc, char **argv) {
 			char beforeRegValue[6] = {0};
 			char afterRegValue[6] = {0};
 
-			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", registers[reg].value);
-			registers[reg].value = (u16)imm;
-			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", registers[reg].value);
+			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[reg].value);
+			genRegisters[reg].value = (u16)imm;
+			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[reg].value);
 
 			if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -285,7 +290,7 @@ int main(int argc, char **argv) {
 			ip += 2;
 
 			u8 w = instBuffer[0] & 1;
-			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
+			u16 addr = (u16)instBuffer[1] | (u16)(instBuffer[2] << 8);
 			char addrString[8] = {0};
 			const char *const accumulatorString[2] = {"al", "ax"};
 
@@ -316,7 +321,7 @@ int main(int argc, char **argv) {
 			ip += 2;
 
 			u8 w = instBuffer[0] & 1;
-			u16 addr = instBuffer[1] | (instBuffer[2] << 8);
+			u16 addr = (u16)instBuffer[1] | (u16)(instBuffer[2] << 8);
 			char addrString[8] = {0};
 			const char *const accumulatorString[2] = {"al", "ax"};
 
@@ -332,6 +337,42 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+		}
+		// mov rm to sr
+		else if (instBuffer[0] == 0b10001110) {
+
+			if (read(inputFD, &instBuffer[1], 1) != 1) {
+				logFatal(inputFD, outputFD, "Error reading the input file");
+			}
+			ip += 1;
+
+			u8 mod = instBuffer[1] >> 6;
+			u8 sr = (instBuffer[1] >> 3) & 0b11;
+			u8 rm = instBuffer[1] & 0b111;
+			char rmString[MAX_OPERAND] = {0};
+			char srString[3] = {0};
+
+			if (getRMstring(mod, rm, 1, rmString, inputFD, &ip) == EXIT_FAILURE) {
+				logFatal(inputFD, outputFD, "Error getting the rm string");
+			}
+
+			strncpy(srString, segRegisters[sr].string, 3);
+
+			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+				return EXIT_FAILURE;
+			}
+			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
@@ -1092,12 +1133,12 @@ int main(int argc, char **argv) {
 
 		char regValueString[6] = {0};
 
-		snprintf(regValueString, sizeof(regValueString), "%hu", registers[i].value);
+		snprintf(regValueString, sizeof(regValueString), "%hu", genRegisters[i].value);
 
 		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
-		if (writeOutput(inputFD, outputFD, registers[i].string) == EXIT_FAILURE) {
+		if (writeOutput(inputFD, outputFD, genRegisters[i].string) == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
 		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {

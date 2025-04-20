@@ -19,7 +19,7 @@ DISASM_TEST_LIST := \
 	test_listing_40 test_add_sub_cmp_rm_reg test_add_sub_cmp_imm_rm \
 	test_non_wide_accumulator_to_mem_mov_and_vice_verca \
 	test_add_sub_cmp_imm_accumulator test_jnz test_all_conditional_jumps \
-	test_all_loops test_listing_41
+	test_all_loops test_listing_41 test_rm_to_sr_mov
 
 SIM_TEST_LIST := \
 	test_sim_imm_to_reg_w_movs test_sim_reg_to_reg_w_mov
@@ -101,6 +101,9 @@ test_all_loops:
 
 test_listing_41:
 	$(call run_test,./asm/disasm/listing_0041_add_sub_cmp_jnz.asm)
+
+test_rm_to_sr_mov:
+	$(call run_test,./asm/disasm/rm_to_sr_mov.asm)
 
 test_sim_imm_to_reg_w_movs:
 	$(call run_test,./asm/sim/listing_0043_immediate_movs.asm)
