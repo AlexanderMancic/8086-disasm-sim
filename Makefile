@@ -23,7 +23,7 @@ DISASM_TEST_LIST := \
 
 SIM_TEST_LIST := \
 	test_sim_imm_to_reg_w_movs test_sim_reg_to_reg_w_mov test_sim_reg_to_sr_mov \
-	test_sim_sr_to_reg_mov
+	test_sim_sr_to_reg_mov test_sim_listing_45
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -168,6 +168,22 @@ test_sim_sr_to_reg_mov:
 	@grep -q ";.*cs: 2222" $(OUTPUT_ASM)
 	@grep -q ";.*ss: 3333" $(OUTPUT_ASM)
 	@grep -q ";.*ds: 4444" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
+
+test_sim_listing_45:
+	$(call run_test,./asm/sim/listing_0045_challenge_register_movs.asm)
+	@grep -q ";.*ax: 17425" $(OUTPUT_ASM)
+	@grep -q ";.*bx: 13124" $(OUTPUT_ASM)
+	@grep -q ";.*cx: 26231" $(OUTPUT_ASM)
+	@grep -q ";.*dx: 30600" $(OUTPUT_ASM)
+	@grep -q ";.*sp: 17425" $(OUTPUT_ASM)
+	@grep -q ";.*bp: 13124" $(OUTPUT_ASM)
+	@grep -q ";.*si: 26231" $(OUTPUT_ASM)
+	@grep -q ";.*di: 30600" $(OUTPUT_ASM)
+	@grep -q ";.*es: 26231" $(OUTPUT_ASM)
+	@grep -q ";.*cs: 0" $(OUTPUT_ASM)
+	@grep -q ";.*ss: 17425" $(OUTPUT_ASM)
+	@grep -q ";.*ds: 13124" $(OUTPUT_ASM)
 	@echo "PASS SIM: $@"
 
 clean:

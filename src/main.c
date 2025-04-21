@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "getSRstring.h"
 #include "types.h"
 #include "writeOutput.h"
 #include "logFatal.h"
@@ -14,6 +15,10 @@
 #include "getRMstring.h"
 #include "getImm.h"
 #include "register.h"
+
+#define DEBUG
+#define GET_REG(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
+#define SET_REG(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
 
 static const char *const arithMnemonics[8] = {
 	"add",
@@ -54,21 +59,23 @@ int main(int argc, char **argv) {
 
 	u32 ip = 0;
 
-	Register ax = {"ax", 0};
-	Register bx = {"bx", 0};
-	Register cx = {"cx", 0};
-	Register dx = {"dx", 0};
-	Register sp = {"sp", 0};
-	Register bp = {"bp", 0};
-	Register si = {"si", 0};
-	Register di = {"di", 0};
-	Register genRegisters[8] = {ax, cx, dx, bx, sp, bp, si, di};
+	Register ax = { .word = 0 };
+	Register bx = { .word = 0 };
+	Register cx = { .word = 0 };
+	Register dx = { .word = 0 };
+	u16 sp = 0;
+	u16 bp = 0;
+	u16 si = 0;
+	u16 di = 0;
 
-	Register es = {"es", 0};
-	Register cs = {"cs", 0};
-	Register ss = {"ss", 0};
-	Register ds = {"ds", 0};
-	Register segRegisters[4] = {es, cs, ss, ds};
+	u8 *registersW0[8] = {&ax.byte.lo, &cx.byte.lo, &dx.byte.lo, &bx.byte.lo, &ax.byte.hi, &cx.byte.hi, &dx.byte.hi, &bx.byte.hi};
+	u16 *registersW1[8] = {&ax.word, &cx.word, &dx.word, &bx.word, &sp, &bp, &si, &di};
+
+	u16 es = 0;
+	u16 cs = 0;
+	u16 ss = 0;
+	u16 ds = 0;
+	u16 *segRegisters[4] = {&es, &cs, &ss, &ds};
 
 	while (true) {
 
@@ -140,13 +147,13 @@ int main(int argc, char **argv) {
 				char afterRegValue[6] = {0};
 
 				if (d) {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[reg].value);
-					genRegisters[reg].value = genRegisters[rm].value;
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[reg].value);
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, reg));
+					SET_REG(w, reg, GET_REG(w, rm));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, reg));
 				} else {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[rm].value);
-					genRegisters[rm].value = genRegisters[reg].value;
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[rm].value);
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, rm));
+					SET_REG(w, rm, GET_REG(w, reg));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, rm));
 				}
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
@@ -252,9 +259,9 @@ int main(int argc, char **argv) {
 			char beforeRegValue[6] = {0};
 			char afterRegValue[6] = {0};
 
-			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[reg].value);
-			genRegisters[reg].value = (u16)imm;
-			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[reg].value);
+			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, reg));
+			SET_REG(w, reg, imm);
+			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, reg));
 
 			if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -361,7 +368,7 @@ int main(int argc, char **argv) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			strncpy(srString, segRegisters[sr].string, 3);
+			strncpy(srString, getSRstring(sr), 3);
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -381,9 +388,9 @@ int main(int argc, char **argv) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 
-				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", segRegisters[sr].value);
-				segRegisters[sr].value = genRegisters[rm].value;
-				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", segRegisters[sr].value);
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", *segRegisters[sr]);
+				*segRegisters[sr] = GET_REG(1, rm);
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", *segRegisters[sr]);
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 					return EXIT_FAILURE;
@@ -427,7 +434,7 @@ int main(int argc, char **argv) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			strncpy(srString, segRegisters[sr].string, 3);
+			strncpy(srString, getSRstring(sr), 3);
 
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -447,9 +454,9 @@ int main(int argc, char **argv) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 
-				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", genRegisters[rm].value);
-				genRegisters[rm].value = segRegisters[sr].value;
-				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", genRegisters[rm].value);
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(1, rm));
+				SET_REG(1, rm, *segRegisters[sr]);
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(1, rm));
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 					return EXIT_FAILURE;
@@ -1222,6 +1229,14 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	#undef DEBUG
+	#ifdef DEBUG
+
+	ax.word = 9999;
+	printf("DEBUG(ax.word): %hu\n", GET_REG(1, 0));
+
+	#endif
+
 	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n\n; General Purpose Registers\n") == EXIT_FAILURE) {
 		return EXIT_FAILURE;
 	}
@@ -1229,12 +1244,15 @@ int main(int argc, char **argv) {
 
 		char regValueString[6] = {0};
 
-		snprintf(regValueString, sizeof(regValueString), "%hu", genRegisters[i].value);
+		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG(1, i));
+		#ifdef DEBUG
+			printf("DEBUG: %s\n", regValueString);
+		#endif
 
 		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
-		if (writeOutput(inputFD, outputFD, genRegisters[i].string) == EXIT_FAILURE) {
+		if (writeOutput(inputFD, outputFD, (char *)getRegString(i, 1)) == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
 		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
@@ -1257,12 +1275,12 @@ int main(int argc, char **argv) {
 
 		char regValueString[6] = {0};
 
-		snprintf(regValueString, sizeof(regValueString), "%hu", segRegisters[i].value);
+		snprintf(regValueString, sizeof(regValueString), "%hu", *segRegisters[i]);
 
 		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
-		if (writeOutput(inputFD, outputFD, segRegisters[i].string) == EXIT_FAILURE) {
+		if (writeOutput(inputFD, outputFD, (char *)getSRstring(i)) == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
 		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
