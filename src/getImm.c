@@ -1,6 +1,7 @@
 #include <unistd.h>
 
 #include "getImm.h"
+#include "types.h"
 
 i32 getImm(u8 w, int inputFD, u32 *ip) {
 	u8 immBuffer[2];
@@ -12,7 +13,7 @@ i32 getImm(u8 w, int inputFD, u32 *ip) {
 		}
 		*ip += 2;
 
-		imm = immBuffer[0] | (immBuffer[1] << 8);
+		imm = (u16)(immBuffer[0] | (immBuffer[1] << 8));
 
 	} else {
 		if ((read(inputFD, &immBuffer, 1)) != 1) {

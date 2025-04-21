@@ -8,6 +8,7 @@
 
 #include "getSRstring.h"
 #include "types.h"
+#include "writeFlags.h"
 #include "writeOutput.h"
 #include "logFatal.h"
 #include "getRegString.h"
@@ -15,10 +16,12 @@
 #include "getRMstring.h"
 #include "getImm.h"
 #include "register.h"
+#include "flagsRegMask.h"
 
 #define DEBUG
-#define GET_REG(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
-#define SET_REG(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
+#undef DEBUG
+#define GET_REG_VAL(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
+#define SET_REG_VAL(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
 
 static const char *const arithMnemonics[8] = {
 	"add",
@@ -76,6 +79,8 @@ int main(int argc, char **argv) {
 	u16 ss = 0;
 	u16 ds = 0;
 	u16 *segRegisters[4] = {&es, &cs, &ss, &ds};
+
+	u16 flagsRegister = 0;
 
 	while (true) {
 
@@ -147,13 +152,13 @@ int main(int argc, char **argv) {
 				char afterRegValue[6] = {0};
 
 				if (d) {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, reg));
-					SET_REG(w, reg, GET_REG(w, rm));
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, reg));
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(w, reg));
+					SET_REG_VAL(w, reg, GET_REG_VAL(w, rm));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, reg));
 				} else {
-					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, rm));
-					SET_REG(w, rm, GET_REG(w, reg));
-					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, rm));
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(w, rm));
+					SET_REG_VAL(w, rm, GET_REG_VAL(w, reg));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, rm));
 				}
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
@@ -259,9 +264,9 @@ int main(int argc, char **argv) {
 			char beforeRegValue[6] = {0};
 			char afterRegValue[6] = {0};
 
-			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(w, reg));
-			SET_REG(w, reg, imm);
-			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(w, reg));
+			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(w, reg));
+			SET_REG_VAL(w, reg, imm);
+			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, reg));
 
 			if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -389,7 +394,7 @@ int main(int argc, char **argv) {
 				char afterRegValue[6] = {0};
 
 				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", *segRegisters[sr]);
-				*segRegisters[sr] = GET_REG(1, rm);
+				*segRegisters[sr] = GET_REG_VAL(1, rm);
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", *segRegisters[sr]);
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
@@ -454,9 +459,9 @@ int main(int argc, char **argv) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 
-				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG(1, rm));
-				SET_REG(1, rm, *segRegisters[sr]);
-				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG(1, rm));
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(1, rm));
+				SET_REG_VAL(1, rm, *segRegisters[sr]);
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(1, rm));
 
 				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
 					return EXIT_FAILURE;
@@ -482,7 +487,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		}
-		// add/sub/cmp with/and reg to either
+		// add/sub/cmp r/m with/and reg to either
 		else if ((instBuffer[0] & 0b11000100) == 0) {
 
 			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
@@ -532,6 +537,245 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (mod == 3) {
+
+				u8 msb;
+				u8 lsb;
+				u8 setLSBbits = 0;
+				u8 dstRegOpcode;
+				u16 flagsRegBefore = flagsRegister;
+				u16 result;
+				u16 dstRegVal;
+				u16 srcRegVal;
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+
+				if (d) {
+					dstRegOpcode = reg;
+					dstRegVal = GET_REG_VAL(w, reg);
+					srcRegVal = GET_REG_VAL(w, rm);
+				} else {
+					dstRegOpcode = rm;
+					dstRegVal = GET_REG_VAL(w, rm);
+					srcRegVal = GET_REG_VAL(w, reg);
+				}
+
+				u8 dstLoNibble = dstRegVal & 0b1111;
+				u8 srcLoNibble = srcRegVal & 0b1111;
+
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
+
+				switch (arithOpcode) {
+					// add
+					case 0: {
+
+						if (w) {
+
+							if ((dstRegVal + srcRegVal) > 65535) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+
+						} else {
+							if ((dstRegVal + srcRegVal) > 255) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if ((dstLoNibble + srcLoNibble) > 15) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						SET_REG_VAL(
+							w,
+							dstRegOpcode,
+							(dstRegVal + srcRegVal)
+						);
+
+						result = GET_REG_VAL(w, dstRegOpcode);
+
+						break;
+					}
+					// sub
+					case 5: {
+
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+						
+						if (srcLoNibble > dstLoNibble) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						SET_REG_VAL(w, dstRegOpcode, result);
+						break;
+					}
+					// cmp
+					case 7: {
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						break;
+					}
+				}
+
+				if (w) {
+					Register splitResult = { .word = result };
+					lsb = splitResult.byte.lo;
+					msb = splitResult.byte.hi;
+				} else {
+					lsb = (u8)result;
+					msb = lsb;
+				}
+
+				while (lsb) {
+					setLSBbits += lsb & 1;
+					lsb >>= 1;
+				}
+
+				if (setLSBbits % 2 == 0) {
+					flagsRegister |= PF;
+				} else {
+					flagsRegister &= (u16)~PF;
+				}
+
+				if (result == 0) {
+					flagsRegister |= ZF;
+				} else {
+					flagsRegister &= (u16)~ZF;
+				}
+
+				if ((msb >> 7) == 1) {
+					flagsRegister |= SF;
+				} else {
+					flagsRegister &= (u16)~SF;
+				}
+
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, dstRegOpcode));
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
+				#endif
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
+
+					printf("     ODIT SZ A  P C\n");
+					u16 value = flagsRegister;
+					for (int i = 15; i >= 0; i--) {
+						putchar((value & (1 << i)) ? '1' : '0');
+						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
+					}
+					putchar('\n');
+				#endif
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
@@ -551,6 +795,7 @@ int main(int argc, char **argv) {
 			u8 mod = instBuffer[1] >> 6;
 			u8 rm = instBuffer[1] & 0b111;
 			u8 arithOpcode = (instBuffer[1] >> 3) & 0b111;
+			u16 imm;
 			char arithMnemonic[4] = {0};
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
@@ -562,10 +807,24 @@ int main(int argc, char **argv) {
 				logFatal(inputFD, outputFD, "Error getting the rm string");
 			}
 
-			i32 imm = getImm(sw, inputFD, &ip);
-			if (imm == -1) {
+			i32 tempImm = getImm(sw, inputFD, &ip);
+			if (tempImm == -1) {
 				logFatal(inputFD, outputFD, "Error decoding immediate value");
 			}
+
+			if (s && w) {
+				u8 temp = (u8)tempImm;
+				u8 msb = temp >> 7;
+
+				if (msb) {
+					imm = (u16)temp | (u16)((0b11111111) << 8);
+				} else {
+					imm = (u16)temp;
+				}
+			} else {
+				imm = (u16)tempImm;
+			}
+
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
 			snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[w], imm);
@@ -585,6 +844,237 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (mod == 3) {
+
+				u8 msb;
+				u8 lsb;
+				u8 setLSBbits = 0;
+				u16 flagsRegBefore = flagsRegister;
+				u16 result;
+				u16 dstRegVal;
+				u16 srcRegVal;
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+
+				dstRegVal = GET_REG_VAL(w, rm);
+				srcRegVal = (u16)imm;
+
+				u8 dstLoNibble = dstRegVal & 0b1111;
+				u8 srcLoNibble = srcRegVal & 0b1111;
+
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
+
+				switch (arithOpcode) {
+					// add
+					case 0: {
+
+						if (w) {
+
+							if ((dstRegVal + srcRegVal) > 65535) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+
+						} else {
+							if ((dstRegVal + srcRegVal) > 255) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if ((dstLoNibble + srcLoNibble) > 15) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						SET_REG_VAL(
+							w,
+							rm,
+							(dstRegVal + srcRegVal)
+						);
+
+						result = GET_REG_VAL(w, rm);
+
+						break;
+					}
+					// sub
+					case 5: {
+
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+						
+						if (srcLoNibble > dstLoNibble) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						SET_REG_VAL(w, rm, result);
+						break;
+					}
+					// cmp
+					case 7: {
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						break;
+					}
+				}
+
+				if (w) {
+					Register splitResult = { .word = result };
+					lsb = splitResult.byte.lo;
+					msb = splitResult.byte.hi;
+				} else {
+					lsb = (u8)result;
+					msb = lsb;
+				}
+
+				while (lsb) {
+					setLSBbits += lsb & 1;
+					lsb >>= 1;
+				}
+
+				if (setLSBbits % 2 == 0) {
+					flagsRegister |= PF;
+				} else {
+					flagsRegister &= (u16)~PF;
+				}
+
+				if (result == 0) {
+					flagsRegister |= ZF;
+				} else {
+					flagsRegister &= (u16)~ZF;
+				}
+
+				if ((msb >> 7) == 1) {
+					flagsRegister |= SF;
+				} else {
+					flagsRegister &= (u16)~SF;
+				}
+
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, rm));
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
+				#endif
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
+
+					printf("     ODIT SZ A  P C\n");
+					u16 value = flagsRegister;
+					for (int i = 15; i >= 0; i--) {
+						putchar((value & (1 << i)) ? '1' : '0');
+						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
+					}
+					putchar('\n');
+				#endif
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}	
@@ -619,6 +1109,244 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			{
+
+				u8 msb;
+				u8 lsb;
+				u8 setLSBbits = 0;
+				u16 flagsRegBefore = flagsRegister;
+				u16 result;
+				u16 dstRegVal;
+				u16 srcRegVal;
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+				char rmString[3] = {0};
+
+				if (w) {
+					strncpy(rmString, "ax", 3);
+				} else {
+					strncpy(rmString, "al", 3);
+				}
+
+				dstRegVal = GET_REG_VAL(w, 0);
+				srcRegVal = (u16)imm;
+
+				u8 dstLoNibble = dstRegVal & 0b1111;
+				u8 srcLoNibble = srcRegVal & 0b1111;
+
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
+
+				switch (arithOpcode) {
+					// add
+					case 0: {
+
+						if (w) {
+
+							if ((dstRegVal + srcRegVal) > 65535) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+
+						} else {
+							if ((dstRegVal + srcRegVal) > 255) {
+								flagsRegister |= CF;
+							} else {
+							flagsRegister &= (u16)~CF;
+							}
+
+							if (
+								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if ((dstLoNibble + srcLoNibble) > 15) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						SET_REG_VAL(
+							w,
+							0,
+							(dstRegVal + srcRegVal)
+						);
+
+						result = GET_REG_VAL(w, 0);
+
+						break;
+					}
+					// sub
+					case 5: {
+
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+						
+						if (srcLoNibble > dstLoNibble) {
+							flagsRegister |= AF;
+						} else {
+							flagsRegister &= (u16)~AF;
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						SET_REG_VAL(w, 0, result);
+						break;
+					}
+					// cmp
+					case 7: {
+						if (w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
+								flagsRegister |= OF;
+							} else {
+								flagsRegister &= (u16)~OF;
+							}
+						}
+
+						if (srcRegVal > dstRegVal) {
+							flagsRegister |= CF;
+						} else {
+							flagsRegister &= (u16)~CF;
+						}
+
+						result = dstRegVal - srcRegVal;
+						break;
+					}
+				}
+
+				if (w) {
+					Register splitResult = { .word = result };
+					lsb = splitResult.byte.lo;
+					msb = splitResult.byte.hi;
+				} else {
+					lsb = (u8)result;
+					msb = lsb;
+				}
+
+				while (lsb) {
+					setLSBbits += lsb & 1;
+					lsb >>= 1;
+				}
+
+				if (setLSBbits % 2 == 0) {
+					flagsRegister |= PF;
+				} else {
+					flagsRegister &= (u16)~PF;
+				}
+
+				if (result == 0) {
+					flagsRegister |= ZF;
+				} else {
+					flagsRegister &= (u16)~ZF;
+				}
+
+				if ((msb >> 7) == 1) {
+					flagsRegister |= SF;
+				} else {
+					flagsRegister &= (u16)~SF;
+				}
+
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, 0));
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
+				#endif
+
+				#undef DEBUG
+				#ifdef DEBUG
+					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
+
+					printf("     ODIT SZ A  P C\n");
+					u16 value = flagsRegister;
+					for (int i = 15; i >= 0; i--) {
+						putchar((value & (1 << i)) ? '1' : '0');
+						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
+					}
+					putchar('\n');
+				#endif
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
@@ -1233,7 +1961,7 @@ int main(int argc, char **argv) {
 	#ifdef DEBUG
 
 	ax.word = 9999;
-	printf("DEBUG(ax.word): %hu\n", GET_REG(1, 0));
+	printf("DEBUG(ax.word): %hu\n", GET_REG_VAL(1, 0));
 
 	#endif
 
@@ -1244,7 +1972,7 @@ int main(int argc, char **argv) {
 
 		char regValueString[6] = {0};
 
-		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG(1, i));
+		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG_VAL(1, i));
 		#ifdef DEBUG
 			printf("DEBUG: %s\n", regValueString);
 		#endif
@@ -1292,6 +2020,15 @@ int main(int argc, char **argv) {
 		if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 			return EXIT_FAILURE;
 		}
+	}
+	if (writeOutput(inputFD, outputFD, "\n; Flags: ") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
 	}
 
 	if (close(inputFD) == -1) {
