@@ -2021,6 +2021,19 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 	}
+
+	char ipString[6] = {0};
+	snprintf(ipString, sizeof(ipString), "%hu", ip);
+	if (writeOutput(inputFD, outputFD, "\n; IP: ") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	if (writeOutput(inputFD, outputFD, ipString) == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+
 	if (writeOutput(inputFD, outputFD, "\n; Flags: ") == EXIT_FAILURE) {
 		return EXIT_FAILURE;
 	}

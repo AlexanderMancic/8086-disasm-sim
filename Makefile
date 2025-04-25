@@ -24,7 +24,7 @@ DISASM_TEST_LIST := \
 SIM_TEST_LIST := \
 	test_sim_imm_to_reg_w_movs test_sim_reg_to_reg_w_mov test_sim_reg_to_sr_mov \
 	test_sim_sr_to_reg_mov test_sim_listing_45 test_sim_listing_46 test_sim_listing_47 \
-	test_sim_imm_to_accumulator_add_sub_cmp
+	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -250,6 +250,28 @@ test_sim_imm_to_accumulator_add_sub_cmp: $(TARGET)
 	@grep -q "^add .*ax, .*33000 ; .* | Flags:.* -> PAS" $(OUTPUT_ASM)
 	@grep -q "^cmp .*ax, .*33222 ; .* | Flags:.* -> PAZ" $(OUTPUT_ASM)
 	@echo "PASS SIM: $@"
+
+test_sim_listing_0048_ip_register: $(TARGET)
+	$(call run_test,./asm/sim/listing_0048_ip_register.asm)
+	@grep -q ";.*ax: 0" $(OUTPUT_ASM)
+	@grep -q ";.*bx: 2000" $(OUTPUT_ASM)
+	@grep -q ";.*cx: 64736" $(OUTPUT_ASM)
+	@grep -q ";.*dx: 0" $(OUTPUT_ASM)
+	@grep -q ";.*sp: 0" $(OUTPUT_ASM)
+	@grep -q ";.*bp: 0" $(OUTPUT_ASM)
+	@grep -q ";.*si: 0" $(OUTPUT_ASM)
+	@grep -q ";.*di: 0" $(OUTPUT_ASM)
+	@grep -q ";.*es: 0" $(OUTPUT_ASM)
+	@grep -q ";.*cs: 0" $(OUTPUT_ASM)
+	@grep -q ";.*ss: 0" $(OUTPUT_ASM)
+	@grep -q ";.*ds: 0" $(OUTPUT_ASM)
+	@grep -q "; IP: 14" $(OUTPUT_ASM)
+	@grep -q "; Flags: CS" $(OUTPUT_ASM)
+	@grep -q "^IP_0:" $(OUTPUT_ASM)
+	@grep -q "^IP_3:" $(OUTPUT_ASM)
+	@grep -q "^IP_5:" $(OUTPUT_ASM)
+	@grep -q "^IP_9:" $(OUTPUT_ASM)
+	@grep -q "^IP_12:" $(OUTPUT_ASM)
 
 clean:
 	@echo "Cleaning project..."
