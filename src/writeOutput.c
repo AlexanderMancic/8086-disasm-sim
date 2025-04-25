@@ -4,20 +4,12 @@
 #include <stdio.h>
 
 #include "writeOutput.h"
+#include "types.h"
 
-int writeOutput(int inputFD, int outputFD, char *text) {
-	if (write(outputFD, text, strlen(text)) == -1) {
-		perror("Error writing to outfile");
-		if (close(inputFD) == -1) {
-			perror("Error closing input file");
-			if (close(outputFD) == -1) {
-				perror("Error closing input file");
-			}
-		}
-		if (close(outputFD) == -1) {
-			perror("Error closing input file");
-		}
-		return EXIT_FAILURE;
+int writeOutput(int outputFD, char *text) {
+
+	if ((write(outputFD, text, strlen(text))) != (i64)(strlen(text))) {
+		return -1;
 	}
 	return EXIT_SUCCESS;
 }
