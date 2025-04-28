@@ -24,7 +24,8 @@ DISASM_TEST_LIST := \
 SIM_TEST_LIST := \
 	test_sim_imm_to_reg_w_movs test_sim_reg_to_reg_w_mov test_sim_reg_to_sr_mov \
 	test_sim_sr_to_reg_mov test_sim_listing_45 test_sim_listing_46 test_sim_listing_47 \
-	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register
+	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register \
+	test_sim_listing_0049_conditional_jumps
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -272,6 +273,15 @@ test_sim_listing_0048_ip_register: $(TARGET)
 	@grep -q "^IP_5:" $(OUTPUT_ASM)
 	@grep -q "^IP_9:" $(OUTPUT_ASM)
 	@grep -q "^IP_12:" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
+
+test_sim_listing_0049_conditional_jumps:
+	@$(call run_test,./asm/sim/listing_0049_conditional_jumps.asm)
+	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
+	@grep -q ";.*bx: 1030" $(OUTPUT_ASM)
+	@grep -q "; IP: 14" $(OUTPUT_ASM)
+	@grep -q "; Flags: PZ" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
 
 clean:
 	@echo "Cleaning project..."

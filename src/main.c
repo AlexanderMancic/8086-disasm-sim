@@ -38,8 +38,15 @@ static const char *const arithMnemonics[8] = {
 
 int main(int argc, char **argv) {
 
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s <infile> <outfile>\n", argv[0]);
+	bool sim = false;
+	if (argc == 4 ) {
+		if (strncmp(argv[3], "simulate", 8) != 0) {
+			fprintf(stderr, "Usage: %s <infile> <outfile> [simulate]\n", argv[0]);
+			return EXIT_FAILURE;
+		}
+		sim = true;
+	} else if (argc != 3) {
+		fprintf(stderr, "Usage: %s <infile> <outfile> [simulate]\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -1583,6 +1590,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && ((flagsRegister >> 6) & 1) == 0) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jnl / jge
