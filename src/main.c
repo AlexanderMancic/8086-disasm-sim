@@ -1,7 +1,9 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <inttypes.h>
@@ -13,8 +15,8 @@
 #include "logFatal.h"
 #include "getRegString.h"
 #include "constants.h"
-#include "getRMstring.h"
-#include "getImm.h"
+#include "writeRmString.h"
+// #include "getImm.h"
 #include "register.h"
 #include "flagsRegMask.h"
 
@@ -60,7 +62,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	u32 ip = 0;
+	u16 ip = 0;
 
 	Register ax = { .word = 0 };
 	Register bx = { .word = 0 };
@@ -82,16 +84,22 @@ int main(int argc, char **argv) {
 
 	u16 flagsRegister = 0;
 
-	while (true) {
+	struct stat inputStat;
+	if (fstat(inputFD, &inputStat) == -1) {
+		perror("Error: Failed to read stats of input file");
+		logFatal(inputFD, outputFD, "");
+	}
 
-		u8 instBuffer[6];
-		ssize_t bytesRead = read(inputFD, &instBuffer, 1);
+	u8 ram[MiB];
+	ssize_t bytesRead = read(inputFD, ram, (size_t)inputStat.st_size);
+	if (bytesRead != inputStat.st_size) {
+		logFatal(inputFD, outputFD, "Error: Failed to read input file");
+	}
+	if (bytesRead > MiB) {
+		logFatal(inputFD, outputFD, "Error: Input file size must not exceed 1 MiB");
+	}
 
-		if (bytesRead == 0) {
-			break;
-		} else if (bytesRead != 1) {
-			logFatal(inputFD, outputFD, "Error reading the input file");
-		}
+	while (ip < bytesRead) {
 
 		char label[16] = {0};
 		snprintf(label, sizeof(label), "IP_%u:\n", ip);
@@ -99,32 +107,30 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 
-		ip += (u32)bytesRead;
-
 		// mov r/m to/from reg
-		if (instBuffer[0] >> 2 == 0b100010) {
+		if (ram[ip] >> 2 == 0b100010) {
 
-			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 d = (ram[ip] >> 1) & 1;
+			u8 w = ram[ip] & 1;
+			ip += 1;
 
+			u8 mod = ram[ip] >> 6;
+			u8 reg = (ram[ip] >> 3) & 0b111;
+			u8 rm = ram[ip] & 0b111;
 			ip += 1;
 
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
 			char regString[MAX_OPERAND] = {0};
 			char rmString[MAX_OPERAND] = {0};
-			u8 reg = (instBuffer[1] >> 3) & 0b111;
-			u8 w = instBuffer[0] & 1;
-			u8 d = (instBuffer[0] >> 1) & 1;
-			u8 mod = instBuffer[1] >> 6;
-			u8 rm = instBuffer[1] & 0b111;
 
 			strncpy(regString, getRegString(reg, w), 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
 			if (d) {
 				strncpy(dst, regString, MAX_OPERAND);
@@ -186,27 +192,32 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov imm to r/m
-		else if (instBuffer[0] >> 1 == 0b1100011) {
+		else if (ram[ip] >> 1 == 0b1100011) {
 
-			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 w = ram[ip] & 1;
+			ip += 1;
+
+			u8 mod = ram[ip] >> 6;
+			u8 rm = ram[ip] & 0b111;
 			ip += 1;
 
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
 			char *sizeSpecifier[2] = {"byte", "word"};
-			u8 w = instBuffer[0] & 1;
-			u8 mod = instBuffer[1] >> 6;
-			u8 rm = instBuffer[1] & 0b111;
 
-			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
-			i32 imm = getImm(w, inputFD, &ip);
-			if (imm == -1) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			u16 imm;
+			if (w) {
+				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
+				ip += 2;
+			} else {
+				imm = (u16)ram[ip];
+				ip += 1;
 			}
 
 			if (mod == 0 && rm == 0b110) {
@@ -232,16 +243,22 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov imm to reg
-		else if (instBuffer[0] >> 4 == 0b1011) {
+		else if (ram[ip] >> 4 == 0b1011) {
+
+			u8 w = (ram[ip] >> 3) & 1;
+			u8 reg = ram[ip] & 0b111;
+			ip += 1;
 
 			char regString[3] = {0};
 			char immString[6] = {0};
-			u8 reg = instBuffer[0] & 0b111;
-			u8 w = (instBuffer[0] >> 3) & 1;
 
-			i32 imm = getImm(w, inputFD, &ip);
-			if (imm == -1) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			u16 imm;
+			if (w) {
+				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
+				ip += 2;
+			} else {
+				imm = (u16)ram[ip];
+				ip += 1;
 			}
 
 			strncpy(regString, getRegString(reg, w), 3);
@@ -294,15 +311,14 @@ int main(int argc, char **argv) {
 
 		}
 		// mov memory to accumulator
-		else if (instBuffer[0] >> 1 == 0b1010000) {
+		else if (ram[ip] >> 1 == 0b1010000) {
 
-			if ((read(inputFD, &instBuffer[1], 2)) != 2) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 w = ram[ip] & 1;
+			ip += 1;
+
+			u16 addr = (u16)ram[ip] | (u16)(ram[ip + 1] << 8);
 			ip += 2;
 
-			u8 w = instBuffer[0] & 1;
-			u16 addr = (u16)instBuffer[1] | (u16)(instBuffer[2] << 8);
 			char addrString[8] = {0};
 			const char *const accumulatorString[2] = {"al", "ax"};
 
@@ -325,15 +341,14 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov accumulator to memory
-		else if (instBuffer[0] >> 1 == 0b1010001) {
+		else if (ram[ip] >> 1 == 0b1010001) {
 
-			if (read(inputFD, &instBuffer[1], 2) != 2) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 w = ram[ip] & 1;
+			ip += 1;
+
+			u16 addr = (u16)ram[ip] | (u16)(ram[ip + 1] << 8);
 			ip += 2;
 
-			u8 w = instBuffer[0] & 1;
-			u16 addr = (u16)instBuffer[1] | (u16)(instBuffer[2] << 8);
 			char addrString[8] = {0};
 			const char *const accumulatorString[2] = {"al", "ax"};
 
@@ -356,22 +371,23 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov rm to sr
-		else if (instBuffer[0] == 0b10001110) {
+		else if (ram[ip] == 0b10001110) {
 
-			if (read(inputFD, &instBuffer[1], 1) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
 			ip += 1;
 
-			u8 mod = instBuffer[1] >> 6;
-			u8 sr = (instBuffer[1] >> 3) & 0b11;
-			u8 rm = instBuffer[1] & 0b111;
+			u8 mod = ram[ip] >> 6;
+			u8 sr = (ram[ip] >> 3) & 0b11;
+			u8 rm = ram[ip] & 0b111;
+			ip += 1;
+
 			char rmString[MAX_OPERAND] = {0};
 			char srString[3] = {0};
 
-			if (getRMstring(mod, rm, 1, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
@@ -422,22 +438,23 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov sr to rm
-		else if (instBuffer[0] == 0b10001100) {
+		else if (ram[ip] == 0b10001100) {
 
-			if (read(inputFD, &instBuffer[1], 1) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
 			ip += 1;
 
-			u8 mod = instBuffer[1] >> 6;
-			u8 sr = (instBuffer[1] >> 3) & 0b11;
-			u8 rm = instBuffer[1] & 0b111;
+			u8 mod = ram[ip] >> 6;
+			u8 sr = (ram[ip] >> 3) & 0b11;
+			u8 rm = ram[ip] & 0b111;
+			ip += 1;
+
 			char rmString[MAX_OPERAND] = {0};
 			char srString[3] = {0};
 
-			if (getRMstring(mod, rm, 1, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
@@ -488,19 +505,18 @@ int main(int argc, char **argv) {
 			}
 		}
 		// add/sub/cmp r/m with/and reg to either
-		else if ((instBuffer[0] & 0b11000100) == 0) {
+		else if ((ram[ip] & 0b11000100) == 0) {
 
-			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 arithOpcode = ram[ip] >> 3;
+			u8 d = (ram[ip] >> 1) & 1;
+			u8 w = ram[ip] & 1;
 			ip += 1;
 
-			u8 arithOpcode = instBuffer[0] >> 3;
-			u8 d = (instBuffer[0] >> 1) & 1;
-			u8 w = instBuffer[0] & 1;
-			u8 mod = instBuffer[1] >> 6;
-			u8 reg = (instBuffer[1] >> 3) & 0b111;
-			u8 rm = instBuffer[1] & 0b111;
+			u8 mod = ram[ip] >> 6;
+			u8 reg = (ram[ip] >> 3) & 0b111;
+			u8 rm = ram[ip] & 0b111;
+			ip += 1;
+
 			char regString[3] = {0};
 			char rmString[MAX_OPERAND] = {0};
 			char arithMnemonic[4] = {0};
@@ -510,9 +526,11 @@ int main(int argc, char **argv) {
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
 			strncpy(regString, getRegString(reg, w), 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
 			if (d) {
 				strncpy(dst, regString, MAX_OPERAND);
@@ -782,20 +800,17 @@ int main(int argc, char **argv) {
 
 		}
 		// add/sub/cmp imm to/from/with r/m
-		else if (instBuffer[0] >> 2 == 0b100000) {
+		else if (ram[ip] >> 2 == 0b100000) {
 
-			if ((read(inputFD, &instBuffer[1], 1)) != 1) {
-				logFatal(inputFD, outputFD, "Error reading the input file");
-			}
+			u8 s = (ram[ip] >> 1) & 1;
+			u8 w = ram[ip] & 1;
 			ip += 1;
 
-			u8 s = (instBuffer[0] >> 1) & 1;
-			u8 w = instBuffer[0] & 1;
-			u8 sw = 1 ? w == 1 && s == 0 : 0;
-			u8 mod = instBuffer[1] >> 6;
-			u8 rm = instBuffer[1] & 0b111;
-			u8 arithOpcode = (instBuffer[1] >> 3) & 0b111;
-			u16 imm;
+			u8 mod = ram[ip] >> 6;
+			u8 arithOpcode = (ram[ip] >> 3) & 0b111;
+			u8 rm = ram[ip] & 0b111;
+			ip += 1;
+
 			char arithMnemonic[4] = {0};
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
@@ -803,17 +818,23 @@ int main(int argc, char **argv) {
 
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
 
-			if (getRMstring(mod, rm, w, rmString, inputFD, &ip) == EXIT_FAILURE) {
-				logFatal(inputFD, outputFD, "Error getting the rm string");
+			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
+			if (ipOffset == -1) {
+				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
 			}
+			ip += (u16)ipOffset;
 
-			i32 tempImm = getImm(sw, inputFD, &ip);
-			if (tempImm == -1) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			u16 imm;
+			if (w && !s) {
+				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
+				ip += 2;
+			} else {
+				imm = (u16)ram[ip];
+				ip += 1;
 			}
 
 			if (s && w) {
-				u8 temp = (u8)tempImm;
+				u8 temp = (u8)imm;
 				u8 msb = temp >> 7;
 
 				if (msb) {
@@ -821,13 +842,13 @@ int main(int argc, char **argv) {
 				} else {
 					imm = (u16)temp;
 				}
-			} else {
-				imm = (u16)tempImm;
 			}
 
-			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
-
-			snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[w], imm);
+			if (mod == 3) {
+				snprintf(immString, sizeof(immString), "%hu", imm);
+			} else {
+				snprintf(immString, sizeof(immString), "%s %hu", sizeSpecifier[w], imm);
+			}
 
 			if (writeOutput(inputFD, outputFD, arithMnemonic) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
@@ -1080,16 +1101,22 @@ int main(int argc, char **argv) {
 			}	
 		}
 		// add/sub/cmp imm to/from/with accumulator
-		else if ((instBuffer[0] & 0b11000110) == 0b00000100) {
+		else if ((ram[ip] & 0b11000110) == 0b00000100) {
 
-			u8 w = instBuffer[0] & 1;
-			u8 arithOpcode = (instBuffer[0] >> 3) & 0b111;
+			u8 arithOpcode = (ram[ip] >> 3) & 0b111;
+			u8 w = ram[ip] & 1;
+			ip += 1;
+
 			char immString[6] = {0};
 			const char *const accumulatorString[2] = {"al", "ax"};
 
-			i32 imm = getImm(w, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
+			u16 imm;
+			if (w) {
+				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
+				ip += 2;
+			} else {
+				imm = (u16)ram[ip];
+				ip += 1;
 			}
 
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
@@ -1352,23 +1379,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// je / jz
-		else if (instBuffer[0] == 0b01110100) {
+		else if (ram[ip] == 0b01110100) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jz IP_") == EXIT_FAILURE) {
@@ -1382,23 +1402,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jl / jnge
-		else if (instBuffer[0] == 0b01111100) {
+		else if (ram[ip] == 0b01111100) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jl IP_") == EXIT_FAILURE) {
@@ -1412,23 +1425,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jle / jng
-		else if (instBuffer[0] == 0b01111110) {
+		else if (ram[ip] == 0b01111110) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jle IP_") == EXIT_FAILURE) {
@@ -1442,23 +1448,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jb / jnae
-		else if (instBuffer[0] == 0b01110010) {
+		else if (ram[ip] == 0b01110010) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jb IP_") == EXIT_FAILURE) {
@@ -1472,23 +1471,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jbe / jna
-		else if (instBuffer[0] == 0b01110110) {
+		else if (ram[ip] == 0b01110110) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jbe IP_") == EXIT_FAILURE) {
@@ -1502,23 +1494,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jp / jpe
-		else if (instBuffer[0] == 0b01111010) {
+		else if (ram[ip] == 0b01111010) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jp IP_") == EXIT_FAILURE) {
@@ -1532,23 +1517,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jo
-		else if (instBuffer[0] == 0b01110000) {
+		else if (ram[ip] == 0b01110000) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jo IP_") == EXIT_FAILURE) {
@@ -1562,23 +1540,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// js
-		else if (instBuffer[0] == 0b01111000) {
+		else if (ram[ip] == 0b01111000) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "js IP_") == EXIT_FAILURE) {
@@ -1592,23 +1563,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jne / jnz
-		else if (instBuffer[0] == 0b01110101) {
+		else if (ram[ip] == 0b01110101) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jnz IP_") == EXIT_FAILURE) {
@@ -1622,23 +1586,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnl / jge
-		else if (instBuffer[0] == 0b01111101) {
+		else if (ram[ip] == 0b01111101) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jge IP_") == EXIT_FAILURE) {
@@ -1652,23 +1609,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnle / jg
-		else if (instBuffer[0] == 0b01111111) {
+		else if (ram[ip] == 0b01111111) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jg IP_") == EXIT_FAILURE) {
@@ -1682,23 +1632,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnb / jae
-		else if (instBuffer[0] == 0b01110011) {
+		else if (ram[ip] == 0b01110011) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jae IP_") == EXIT_FAILURE) {
@@ -1712,23 +1655,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnbe / ja
-		else if (instBuffer[0] == 0b01110111) {
+		else if (ram[ip] == 0b01110111) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "ja IP_") == EXIT_FAILURE) {
@@ -1742,23 +1678,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnp / jpo
-		else if (instBuffer[0] == 0b01111011) {
+		else if (ram[ip] == 0b01111011) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jnp IP_") == EXIT_FAILURE) {
@@ -1772,23 +1701,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jno
-		else if (instBuffer[0] == 0b01110001) {
+		else if (ram[ip] == 0b01110001) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jno IP_") == EXIT_FAILURE) {
@@ -1802,23 +1724,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jns
-		else if (instBuffer[0] == 0b01111001) {
+		else if (ram[ip] == 0b01111001) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jns IP_") == EXIT_FAILURE) {
@@ -1832,23 +1747,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loop
-		else if (instBuffer[0] == 0b11100010) {
+		else if (ram[ip] == 0b11100010) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "loop IP_") == EXIT_FAILURE) {
@@ -1862,23 +1770,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loopz / loope
-		else if (instBuffer[0] == 0b11100001) {
+		else if (ram[ip] == 0b11100001) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "loopz IP_") == EXIT_FAILURE) {
@@ -1892,23 +1793,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loopnz / loopne
-		else if (instBuffer[0] == 0b11100000) {
+		else if (ram[ip] == 0b11100000) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "loopnz IP_") == EXIT_FAILURE) {
@@ -1922,23 +1816,16 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jcxz
-		else if (instBuffer[0] == 0b11100011) {
+		else if (ram[ip] == 0b11100011) {
 
-			i32 imm = getImm(0, inputFD, &ip);
-			if (imm < 0) {
-				logFatal(inputFD, outputFD, "Error decoding immediate value");
-			}
+			ip += 1;
 
-			i8 ip_inc8 = (i8)imm;
-			u32 jumpIP;
+			i8 ip_inc8 = (i8)ram[ip];
+			ip += 1;
+
+			i32 jumpIP = ip + ip_inc8;
+
 			char jumpIPstring[11] = {0};
-
-			if (ip_inc8 < 0) {
-				jumpIP = (u32)((i32)ip - (i32)(-ip_inc8));
-			} else {
-				jumpIP = (u32)((i32)ip + (i32)ip_inc8);
-			}
-
 			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
 
 			if (writeOutput(inputFD, outputFD, "jcxz IP_") == EXIT_FAILURE) {
@@ -1952,7 +1839,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		else {
-			fprintf(stderr, "Byte: 0x%x\n", instBuffer[0]);
+			fprintf(stderr, "Byte: 0x%x\n", ram[ip]);
 			logFatal(inputFD, outputFD, "Error: Unknown opcode");
 		}
 	}

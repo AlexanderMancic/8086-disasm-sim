@@ -1,7 +1,6 @@
 #include <unistd.h>
 
 #include "getImm.h"
-#include "types.h"
 
 i32 getImm(u8 w, int inputFD, u32 *ip) {
 	u8 immBuffer[2];
