@@ -25,7 +25,8 @@ SIM_TEST_LIST := \
 	test_sim_imm_to_reg_w_movs test_sim_reg_to_reg_w_mov test_sim_reg_to_sr_mov \
 	test_sim_sr_to_reg_mov test_sim_listing_45 test_sim_listing_46 test_sim_listing_47 \
 	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register \
-	test_sim_listing_0049_conditional_jumps
+	test_sim_listing_0049_conditional_jumps test_sim_listing_0050_challenge_jumps \
+	test_sim_all_conditional_jumps_and_loops
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -275,13 +276,32 @@ test_sim_listing_0048_ip_register: $(TARGET)
 	@grep -q "^IP_12:" $(OUTPUT_ASM)
 	@echo "PASS SIM: $@"
 
-test_sim_listing_0049_conditional_jumps:
+test_sim_listing_0049_conditional_jumps: $(TARGET)
 	@$(call run_test,./asm/sim/listing_0049_conditional_jumps.asm)
 	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
 	@grep -q ";.*bx: 1030" $(OUTPUT_ASM)
 	@grep -q "; IP: 14" $(OUTPUT_ASM)
 	@grep -q "; Flags: PZ" $(OUTPUT_ASM)
 	@echo "PASS SIM: $@"
+
+test_sim_listing_0050_challenge_jumps: $(TARGET)
+	@$(call run_test,./asm/sim/listing_0050_challenge_jumps.asm)
+	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
+	@grep -q ";.*ax: 13" $(OUTPUT_ASM)
+	@grep -q ";.*bx: 65531" $(OUTPUT_ASM)
+	@grep -q "; IP: 28" $(OUTPUT_ASM)
+	@grep -q "; Flags: CAS" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
+
+test_sim_all_conditional_jumps_and_loops: $(TARGET)
+	@$(call run_test,./asm/sim/all_conditional_jumps_and_loops.asm)
+	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
+	@grep -q ";.*ax: 10" $(OUTPUT_ASM)
+	@grep -q ";.*cx: 0" $(OUTPUT_ASM)
+	@grep -q ";.*bx: 128" $(OUTPUT_ASM)
+	@grep -q ";.*dx: 255" $(OUTPUT_ASM)
+	@grep -q ";.*si: 0" $(OUTPUT_ASM)
+	@grep -q ";.*bp: 100" $(OUTPUT_ASM)
 
 clean:
 	@echo "Cleaning project..."

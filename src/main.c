@@ -24,6 +24,7 @@
 #undef DEBUG
 #define GET_REG_VAL(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
 #define SET_REG_VAL(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
+#define isFlagSet(flagMask) ((flagsRegister & flagMask) != 0)
 
 static const char *const arithMnemonics[8] = {
 	"add",
@@ -1407,6 +1408,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && (isFlagSet(ZF) )) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jl / jnge
 		else if (ram[ip] == 0b01111100) {
@@ -1429,6 +1434,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (isFlagSet(SF) != isFlagSet(OF) )) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jle / jng
@@ -1453,6 +1462,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && ( isFlagSet(ZF) || ((isFlagSet(SF) != isFlagSet(OF)) ))) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jb / jnae
 		else if (ram[ip] == 0b01110010) {
@@ -1475,6 +1488,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (isFlagSet(CF) )) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jbe / jna
@@ -1499,6 +1516,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && ((isFlagSet(ZF)) || (isFlagSet(CF)) )) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jp / jpe
 		else if (ram[ip] == 0b01111010) {
@@ -1521,6 +1542,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (isFlagSet(PF) )) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jo
@@ -1545,6 +1570,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && (isFlagSet(OF) )) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// js
 		else if (ram[ip] == 0b01111000) {
@@ -1567,6 +1596,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (isFlagSet(SF) )) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jne / jnz
@@ -1595,6 +1628,10 @@ int main(int argc, char **argv) {
 			if (sim && ((flagsRegister >> 6) & 1) == 0) {
 				ip = (u16)jumpIP;
 			}
+
+			if (sim && (!isFlagSet(ZF) )) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jnl / jge
 		else if (ram[ip] == 0b01111101) {
@@ -1617,6 +1654,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (isFlagSet(SF) == isFlagSet(OF) )) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jnle / jg
@@ -1641,6 +1682,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && ((!isFlagSet(ZF)) && (isFlagSet(SF) == isFlagSet(OF) ))) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jnb / jae
 		else if (ram[ip] == 0b01110011) {
@@ -1663,6 +1708,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (!isFlagSet(CF))) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jnbe / ja
@@ -1687,6 +1736,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && ((!isFlagSet(CF)) && (!isFlagSet(ZF) ))) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jnp / jpo
 		else if (ram[ip] == 0b01111011) {
@@ -1709,6 +1762,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (!isFlagSet(PF))) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// jno
@@ -1733,6 +1790,10 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim && (!isFlagSet(OF))) {
+				ip = (u16)jumpIP;
+			}
 		}
 		// jns
 		else if (ram[ip] == 0b01111001) {
@@ -1755,6 +1816,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (!isFlagSet(SF))) {
+				ip = (u16)jumpIP;
 			}
 		}
 		// loop
@@ -1779,6 +1844,13 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim) {
+				cx.word--;
+				if (cx.word  != 0) {
+					ip = (u16)jumpIP;
+				}
+			}
 		}
 		// loopz / loope
 		else if (ram[ip] == 0b11100001) {
@@ -1801,6 +1873,13 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim) {
+				cx.word--;
+				if ((cx.word  != 0) && isFlagSet(ZF)) {
+					ip = (u16)jumpIP;
+				}
 			}
 		}
 		// loopnz / loopne
@@ -1825,6 +1904,13 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+
+			if (sim) {
+				cx.word -= 1;
+				if ((cx.word  != 0) && (!isFlagSet(ZF))) {
+					ip = (u16)jumpIP;
+				}
+			}
 		}
 		// jcxz
 		else if (ram[ip] == 0b11100011) {
@@ -1847,6 +1933,10 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim && (cx.word == 0)) {
+				ip = (u16)jumpIP;
 			}
 		}
 		else {
