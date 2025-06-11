@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "getDisplacement.h"
+#include "getAddress.h"
 #include "getSRstring.h"
 #include "types.h"
 #include "writeFlags.h"
@@ -98,13 +100,13 @@ int main(int argc, char **argv) {
 		logFatal(inputFD, outputFD, "");
 	}
 
-	u8 ram[MiB];
+	u8 ram[65536];
 	ssize_t bytesRead = read(inputFD, ram, (size_t)inputStat.st_size);
 	if (bytesRead != inputStat.st_size) {
 		logFatal(inputFD, outputFD, "Error: Failed to read input file");
 	}
-	if (bytesRead > MiB) {
-		logFatal(inputFD, outputFD, "Error: Input file size must not exceed 1 MiB");
+	if (bytesRead > 65536) {
+		logFatal(inputFD, outputFD, "Error: Input file size must not exceed 65,536 bytes");
 	}
 
 	while (ip < bytesRead) {
@@ -133,6 +135,14 @@ int main(int argc, char **argv) {
 			char rmString[MAX_OPERAND] = {0};
 
 			strncpy(regString, getRegString(reg, w), 3);
+
+			i32 disp;
+			if (sim) {
+				disp = getDisplacement(&ram[ip], mod, rm);
+				if (disp == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+				}
+			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
@@ -195,6 +205,24 @@ int main(int argc, char **argv) {
 				}
 			}
 
+			if (sim && mod != 3) {
+				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
+				if (address == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+				}
+
+				if (d) {
+					Register val;
+					val.byte.lo = ram[address];
+					val.byte.hi = ram[address + 1];
+					SET_REG_VAL(1, reg, val.word);
+				} else {
+					Register val = { .word = GET_REG_VAL(1, reg) };
+					ram[address] = val.byte.lo;
+					ram[address + 1] = val.byte.hi;
+				}
+			}
+
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
@@ -212,6 +240,14 @@ int main(int argc, char **argv) {
 			char rmString[MAX_OPERAND] = {0};
 			char immString[11] = {0};
 			char *sizeSpecifier[2] = {"byte", "word"};
+
+			i32 disp;
+			if (sim) {
+				disp = getDisplacement(&ram[ip], mod, rm);
+				if (disp == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+				}
+			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
@@ -237,6 +273,15 @@ int main(int argc, char **argv) {
 			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
+			if (w) {
+				if (writeOutput(inputFD, outputFD, "word ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+			} else {
+				if (writeOutput(inputFD, outputFD, "byte ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+			}
 			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
 				return EXIT_FAILURE;
 			}
@@ -248,6 +293,17 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
+			}
+
+			if (sim) {
+				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
+				if (address == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+				}
+
+				Register splitImm = { .word = imm };
+				ram[address] = splitImm.byte.lo;
+				ram[address + 1] = splitImm.byte.hi;
 			}
 		}
 		// mov imm to reg
