@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 		logFatal(inputFD, outputFD, "");
 	}
 
-	u8 ram[65536];
+	u8 ram[65536] = {0};
 	ssize_t bytesRead = read(inputFD, ram, (size_t)inputStat.st_size);
 	if (bytesRead != inputStat.st_size) {
 		logFatal(inputFD, outputFD, "Error: Failed to read input file");
@@ -171,6 +171,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
+			// FIX: somehow specifying sim && (mod == 3) breaks the code
 			if (mod == 3) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
@@ -211,15 +212,58 @@ int main(int argc, char **argv) {
 					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
 				}
 
+				char addressString[6] = {0};
+				snprintf(addressString, sizeof(addressString), "%hu", address);
+				
+				char beforeValue[6] = {0};
+				char afterValue[6] = {0};
+				Register val;
 				if (d) {
-					Register val;
+					snprintf(beforeValue, sizeof(beforeValue), "%hu", GET_REG_VAL(w, reg));
+
 					val.byte.lo = ram[address];
 					val.byte.hi = ram[address + 1];
 					SET_REG_VAL(1, reg, val.word);
+
+					snprintf(afterValue, sizeof(afterValue), "%hu", GET_REG_VAL(w, reg));
 				} else {
-					Register val = { .word = GET_REG_VAL(1, reg) };
+					Register beforeVal;
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
+
+					val.word = GET_REG_VAL(1, reg);
 					ram[address] = val.byte.lo;
 					ram[address + 1] = val.byte.hi;
+
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
+				}
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, addressString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
 				}
 			}
 
@@ -1679,10 +1723,6 @@ int main(int argc, char **argv) {
 			}
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
 				return EXIT_FAILURE;
-			}
-
-			if (sim && ((flagsRegister >> 6) & 1) == 0) {
-				ip = (u16)jumpIP;
 			}
 
 			if (sim && (!isFlagSet(ZF) )) {

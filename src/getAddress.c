@@ -1,6 +1,5 @@
 #include "getAddress.h"
 #include "types.h"
-#include <stdio.h>
 
 i32 getAddress(u16 *registers[8], u16 displacement, u8 mod, u8 rm) {
 
@@ -10,7 +9,7 @@ i32 getAddress(u16 *registers[8], u16 displacement, u8 mod, u8 rm) {
 		return displacement;
 	}
 
-	switch (mod) {
+	switch (rm) {
 		
 		case 0:
 			return *registers[3] + *registers[6] + displacement;

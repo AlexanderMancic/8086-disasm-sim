@@ -26,7 +26,8 @@ SIM_TEST_LIST := \
 	test_sim_sr_to_reg_mov test_sim_listing_45 test_sim_listing_46 test_sim_listing_47 \
 	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register \
 	test_sim_listing_0049_conditional_jumps test_sim_listing_0050_challenge_jumps \
-	test_sim_all_conditional_jumps_and_loops test_sim_listing_0051_memory_mov
+	test_sim_all_conditional_jumps_and_loops test_sim_listing_0051_memory_mov \
+	test_sim_listing_0052_memory_add_loop
 
 define run_test
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -302,6 +303,7 @@ test_sim_all_conditional_jumps_and_loops: $(TARGET)
 	@grep -q ";.*dx: 255" $(OUTPUT_ASM)
 	@grep -q ";.*si: 0" $(OUTPUT_ASM)
 	@grep -q ";.*bp: 100" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
 
 test_sim_listing_0051_memory_mov: $(TARGET)
 	@$(call run_test,./asm/sim/listing_0051_memory_mov.asm)
@@ -311,6 +313,19 @@ test_sim_listing_0051_memory_mov: $(TARGET)
 	@grep -q ";.*dx: 10" $(OUTPUT_ASM)
 	@grep -q ";.*bp: 4" $(OUTPUT_ASM)
 	@grep -q "; IP: 48" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
+
+test_sim_listing_0052_memory_add_loop: $(TARGET)
+	@$(call run_test,./asm/sim/listing_0052_memory_add_loop.asm)
+	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
+	@grep -q ";.*bx: 6" $(OUTPUT_ASM)
+	@grep -q ";.*cx: 4" $(OUTPUT_ASM)
+	@grep -q ";.*dx: 6" $(OUTPUT_ASM)
+	@grep -q ";.*bp: 1000" $(OUTPUT_ASM)
+	@grep -q ";.*si: 6" $(OUTPUT_ASM)
+	@grep -q "; IP: 35" $(OUTPUT_ASM)
+	@grep -q "; Flags: PZ" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
 
 clean:
 	@echo "Cleaning project..."
