@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "doArithmetic.h"
 #include "getDisplacement.h"
 #include "getAddress.h"
 #include "getSRstring.h"
@@ -631,6 +632,14 @@ int main(int argc, char **argv) {
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
 
+			i32 disp;
+			if (sim) {
+				disp = getDisplacement(&ram[ip], mod, rm);
+				if (disp == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+				}
+			}
+
 			strncpy(arithMnemonic, arithMnemonics[arithOpcode], 3);
 			strncpy(regString, getRegString(reg, w), 3);
 
@@ -664,11 +673,9 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
+			// FIX: can't add 'sim &&' in condition
 			if (mod == 3) {
 
-				u8 msb;
-				u8 lsb;
-				u8 setLSBbits = 0;
 				u8 dstRegOpcode;
 				u16 flagsRegBefore = flagsRegister;
 				u16 result;
@@ -687,168 +694,10 @@ int main(int argc, char **argv) {
 					srcRegVal = GET_REG_VAL(w, reg);
 				}
 
-				u8 dstLoNibble = dstRegVal & 0b1111;
-				u8 srcLoNibble = srcRegVal & 0b1111;
-
 				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
 
-				switch (arithOpcode) {
-					// add
-					case 0: {
-
-						if (w) {
-
-							if ((dstRegVal + srcRegVal) > 65535) {
-								flagsRegister |= CF;
-							} else {
-							flagsRegister &= (u16)~CF;
-							}
-
-							if (
-								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-
-						} else {
-							if ((dstRegVal + srcRegVal) > 255) {
-								flagsRegister |= CF;
-							} else {
-							flagsRegister &= (u16)~CF;
-							}
-
-							if (
-								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-
-						if ((dstLoNibble + srcLoNibble) > 15) {
-							flagsRegister |= AF;
-						} else {
-							flagsRegister &= (u16)~AF;
-						}
-
-						SET_REG_VAL(
-							w,
-							dstRegOpcode,
-							(dstRegVal + srcRegVal)
-						);
-
-						result = GET_REG_VAL(w, dstRegOpcode);
-
-						break;
-					}
-					// sub
-					case 5: {
-
-						if (w) {
-							if (
-								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						} else {
-							if (
-								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-						
-						if (srcLoNibble > dstLoNibble) {
-							flagsRegister |= AF;
-						} else {
-							flagsRegister &= (u16)~AF;
-						}
-
-						if (srcRegVal > dstRegVal) {
-							flagsRegister |= CF;
-						} else {
-							flagsRegister &= (u16)~CF;
-						}
-
-						result = dstRegVal - srcRegVal;
-						SET_REG_VAL(w, dstRegOpcode, result);
-						break;
-					}
-					// cmp
-					case 7: {
-						if (w) {
-							if (
-								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						} else {
-							if (
-								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-
-						if (srcRegVal > dstRegVal) {
-							flagsRegister |= CF;
-						} else {
-							flagsRegister &= (u16)~CF;
-						}
-
-						result = dstRegVal - srcRegVal;
-						break;
-					}
-				}
-
-				if (w) {
-					Register splitResult = { .word = result };
-					lsb = splitResult.byte.lo;
-					msb = splitResult.byte.hi;
-				} else {
-					lsb = (u8)result;
-					msb = lsb;
-				}
-
-				while (lsb) {
-					setLSBbits += lsb & 1;
-					lsb >>= 1;
-				}
-
-				if (setLSBbits % 2 == 0) {
-					flagsRegister |= PF;
-				} else {
-					flagsRegister &= (u16)~PF;
-				}
-
-				if (result == 0) {
-					flagsRegister |= ZF;
-				} else {
-					flagsRegister &= (u16)~ZF;
-				}
-
-				if ((msb >> 7) == 1) {
-					flagsRegister |= SF;
-				} else {
-					flagsRegister &= (u16)~SF;
-				}
+				result = doArithmetic(dstRegVal, srcRegVal, &flagsRegister, arithOpcode, w);
+				SET_REG_VAL(w, dstRegOpcode, result);
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, dstRegOpcode));
 
@@ -900,6 +749,70 @@ int main(int argc, char **argv) {
 					}
 					putchar('\n');
 				#endif
+			}
+
+			if (sim && w && mod != 3) {
+				
+				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
+				if (address == -1) {
+					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+				}
+
+				char addressString[6] = {0};
+				snprintf(addressString, sizeof(addressString), "%hu", address);
+				
+				char beforeValue[6] = {0};
+				char afterValue[6] = {0};
+				Register val;
+				val.byte.lo = ram[address];
+				val.byte.hi = ram[address + 1];
+				if (d) {
+					snprintf(beforeValue, sizeof(beforeValue), "%hu", GET_REG_VAL(w, reg));
+
+					u16 result = doArithmetic(GET_REG_VAL(w, reg), val.word, &flagsRegister, arithOpcode, w);
+					SET_REG_VAL(w, reg, result);
+
+					snprintf(afterValue, sizeof(afterValue), "%hu", GET_REG_VAL(w, reg));
+				} else {
+					Register beforeVal;
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
+
+					u16 result = doArithmetic(val.word, GET_REG_VAL(w, reg), &flagsRegister, arithOpcode, w);
+					val.word = result;
+					ram[address] = val.byte.lo;
+					ram[address + 1] = val.byte.hi;
+
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
+				}
+
+				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, addressString) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, beforeValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
+				if (writeOutput(inputFD, outputFD, afterValue) == EXIT_FAILURE) {
+					return EXIT_FAILURE;
+				}
 			}
 
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
