@@ -13,8 +13,7 @@
 #include "getAddress.h"
 #include "getSRstring.h"
 #include "types.h"
-#include "writeFlags.h"
-#include "writeOutput.h"
+#include "sPrintFlags.h"
 #include "logFatal.h"
 #include "getRegString.h"
 #include "constants.h"
@@ -57,8 +56,8 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	int outputFD = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (outputFD == -1) {
+	FILE *outputFile = fopen(argv[2], "w");
+	if (outputFile == NULL) {
 		perror("Error opening output file");
 		if (close(inputFD) == -1) {
 			perror("Error closing input file");
@@ -66,8 +65,8 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	if (writeOutput(inputFD, outputFD, "bits 16\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
+	if (fprintf(outputFile, "bits 16\n") < 0) {
+		logFatal(inputFD, outputFile, "Error writing to output file");
 	}
 
 	u16 ip = 0;
@@ -95,24 +94,22 @@ int main(int argc, char **argv) {
 	struct stat inputStat;
 	if (fstat(inputFD, &inputStat) == -1) {
 		perror("Error: Failed to read stats of input file");
-		logFatal(inputFD, outputFD, "");
+		logFatal(inputFD, outputFile, "");
 	}
 
 	u8 ram[65536] = {0};
 	ssize_t bytesRead = read(inputFD, ram, (size_t)inputStat.st_size);
 	if (bytesRead != inputStat.st_size) {
-		logFatal(inputFD, outputFD, "Error: Failed to read input file");
+		logFatal(inputFD, outputFile, "Error: Failed to read input file");
 	}
 	if (bytesRead > 65536) {
-		logFatal(inputFD, outputFD, "Error: Input file size must not exceed 65,536 bytes");
+		logFatal(inputFD, outputFile, "Error: Input file size must not exceed 65,536 bytes");
 	}
 
 	while (ip < bytesRead) {
 
-		char label[16] = {0};
-		snprintf(label, sizeof(label), "IP_%u:\n", ip);
-		if (writeOutput(inputFD, outputFD, label) == EXIT_FAILURE) {
-			return EXIT_FAILURE;
+		if (fprintf(outputFile, "IP_%u:\n", ip) < 0) {
+			logFatal(inputFD, outputFile, "Error writing to output file");
 		}
 
 		// mov r/m to/from reg
@@ -138,13 +135,13 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+					logFatal(inputFD, outputFile, "Error: Failed to get displacement value");
 				}
 			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
@@ -156,17 +153,8 @@ int main(int argc, char **argv) {
 				strncpy(src, regString, MAX_OPERAND);
 			}
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s", dst, src) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && mod == 3) {
@@ -183,30 +171,15 @@ int main(int argc, char **argv) {
 					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, rm));
 				}
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				if (fprintf(outputFile, " ; %s: %s -> %s", dst, beforeRegValue, afterRegValue) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
 			if (sim && mod != 3) {
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+					logFatal(inputFD, outputFile, "Error: Failed to calculate address");
 				}
 
 				char addressString[6] = {0};
@@ -238,34 +211,13 @@ int main(int argc, char **argv) {
 					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 				}
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, addressString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				if (fprintf(outputFile, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// mov imm to r/m
@@ -286,13 +238,13 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+					logFatal(inputFD, outputFile, "Error: Failed to get displacement value");
 				}
 			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
@@ -311,35 +263,15 @@ int main(int argc, char **argv) {
 				snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[w], imm);
 			}
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (w) {
-				if (writeOutput(inputFD, outputFD, "word ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-			} else {
-				if (writeOutput(inputFD, outputFD, "byte ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-			}
-			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s %s, %s \n", sizeSpecifier[w], rmString, immString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
+			// TODO: write to output simulation comment
 			if (sim) {
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+					logFatal(inputFD, outputFile, "Error: Failed to calculate address");
 				}
 
 				Register splitImm = { .word = imm };
@@ -370,17 +302,8 @@ int main(int argc, char **argv) {
 
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, regString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s", regString, immString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			char beforeRegValue[6] = {0};
@@ -390,30 +313,9 @@ int main(int argc, char **argv) {
 			SET_REG_VAL(w, reg, imm);
 			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, reg));
 
-			if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, " ; %s: %s -> %s \n", regString, beforeRegValue, afterRegValue) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
-			if (writeOutput(inputFD, outputFD, regString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-
-
 		}
 		// mov memory to accumulator
 		else if (ram[ip] >> 1 == 0b1010000) {
@@ -429,20 +331,8 @@ int main(int argc, char **argv) {
 
 			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s\n", (char *)accumulatorString[w], addrString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// mov accumulator to memory
@@ -459,20 +349,8 @@ int main(int argc, char **argv) {
 
 			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, addrString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s\n", addrString, (char *)accumulatorString[w]) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// mov rm to sr
@@ -490,23 +368,14 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s", srString, rmString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (mod == 3) {
@@ -518,28 +387,13 @@ int main(int argc, char **argv) {
 				*segRegisters[sr] = GET_REG_VAL(1, rm);
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", *segRegisters[sr]);
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				if (fprintf(outputFile, " ; %s: %s -> %s", srString, beforeRegValue, afterRegValue) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// mov sr to rm
@@ -557,23 +411,14 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
-			if (writeOutput(inputFD, outputFD, "mov ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, srString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "mov %s, %s", rmString, srString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && mod == 3) {
@@ -585,28 +430,13 @@ int main(int argc, char **argv) {
 				SET_REG_VAL(1, rm, *segRegisters[sr]);
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(1, rm));
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				if (fprintf(outputFile, " ; %s: %s -> %s", rmString, beforeRegValue, afterRegValue) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// add/sub/cmp r/m with/and reg to either
@@ -632,7 +462,7 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to get displacement value");
+					logFatal(inputFD, outputFile, "Error: Failed to get displacement value");
 				}
 			}
 
@@ -641,7 +471,7 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
@@ -653,20 +483,8 @@ int main(int argc, char **argv) {
 				strncpy(src, regString, MAX_OPERAND);
 			}
 
-			if (writeOutput(inputFD, outputFD, arithMnemonic) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, src) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "%s %s, %s", arithMnemonic, dst, src) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && mod == 3) {
@@ -678,6 +496,8 @@ int main(int argc, char **argv) {
 				u16 srcRegVal;
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
+				char flagsStringBefore[10] = {0};
+				char flagsStringAfter[10] = {0};
 
 				if (d) {
 					dstRegOpcode = reg;
@@ -696,35 +516,10 @@ int main(int argc, char **argv) {
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, dstRegOpcode));
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				sPrintFlags(flagsStringBefore, flagsRegBefore);
+				sPrintFlags(flagsStringAfter, flagsRegister);
+				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
@@ -732,7 +527,7 @@ int main(int argc, char **argv) {
 				
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(inputFD, outputFD, "Error: Failed to calculate address");
+					logFatal(inputFD, outputFile, "Error: Failed to calculate address");
 				}
 
 				char addressString[6] = {0};
@@ -766,36 +561,14 @@ int main(int argc, char **argv) {
 					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 				}
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, dst) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, addressString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				if (fprintf(outputFile, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
-
 		}
 		// add/sub/cmp imm to/from/with r/m
 		else if (ram[ip] >> 2 == 0b100000) {
@@ -818,7 +591,7 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(inputFD, outputFD, "Error: Failed to write rm string to buffer");
+				logFatal(inputFD, outputFile, "Error: Failed to write rm string to buffer");
 			}
 			ip += (u16)ipOffset;
 
@@ -848,20 +621,8 @@ int main(int argc, char **argv) {
 				snprintf(immString, sizeof(immString), "%s %hu", sizeSpecifier[w], imm);
 			}
 
-			if (writeOutput(inputFD, outputFD, arithMnemonic) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "%s %s, %s", arithMnemonic, rmString, immString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && mod == 3) {
@@ -875,6 +636,8 @@ int main(int argc, char **argv) {
 				u16 srcRegVal;
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
+				char flagsStringBefore[10] = {0};
+				char flagsStringAfter[10] = {0};
 
 				dstRegVal = GET_REG_VAL(w, rm);
 				srcRegVal = (u16)imm;
@@ -1044,41 +807,16 @@ int main(int argc, char **argv) {
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, rm));
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				sPrintFlags(flagsStringBefore, flagsRegBefore);
+				sPrintFlags(flagsStringAfter, flagsRegister);
+				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}	
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
+			}
 		}
 		// add/sub/cmp imm to/from/with accumulator
 		else if ((ram[ip] & 0b11000110) == 0b00000100) {
@@ -1101,20 +839,8 @@ int main(int argc, char **argv) {
 
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
-			if (writeOutput(inputFD, outputFD, (char *)arithMnemonics[arithOpcode]) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, " ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, (char *)accumulatorString[w]) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, ", ") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, immString) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "%s %s, %s", (char *)arithMnemonics[arithOpcode], (char *)accumulatorString[w], immString) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			{
@@ -1129,6 +855,8 @@ int main(int argc, char **argv) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 				char rmString[3] = {0};
+				char flagsStringBefore[10] = {0};
+				char flagsStringAfter[10] = {0};
 
 				if (w) {
 					strncpy(rmString, "ax", 3);
@@ -1304,40 +1032,15 @@ int main(int argc, char **argv) {
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, 0));
 
-				if (writeOutput(inputFD, outputFD, " ; ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, rmString) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, beforeRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, afterRegValue) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " | Flags: ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegBefore) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeOutput(inputFD, outputFD, " -> ") == EXIT_FAILURE) {
-					return EXIT_FAILURE;
-				}
-				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
-					return EXIT_FAILURE;
+				sPrintFlags(flagsStringBefore, flagsRegBefore);
+				sPrintFlags(flagsStringAfter, flagsRegister);
+				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
+					logFatal(inputFD, outputFile, "Error writing to output file");
 				}
 			}
 
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "\n") < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 		}
 		// je / jz
@@ -1350,17 +1053,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jz IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jz IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(ZF) )) {
@@ -1377,17 +1071,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jl IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jl IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(SF) != isFlagSet(OF) )) {
@@ -1404,17 +1089,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jle IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jle IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && ( isFlagSet(ZF) || ((isFlagSet(SF) != isFlagSet(OF)) ))) {
@@ -1431,17 +1107,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jb IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jb IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(CF) )) {
@@ -1458,17 +1125,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jbe IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jbe IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && ((isFlagSet(ZF)) || (isFlagSet(CF)) )) {
@@ -1485,17 +1143,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jp IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jp IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(PF) )) {
@@ -1512,17 +1161,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jo IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jo IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(OF) )) {
@@ -1539,17 +1179,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "js IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "js IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(SF) )) {
@@ -1566,17 +1197,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jnz IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jnz IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (!isFlagSet(ZF) )) {
@@ -1593,17 +1215,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jge IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jge IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (isFlagSet(SF) == isFlagSet(OF) )) {
@@ -1620,17 +1233,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jg IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jg IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && ((!isFlagSet(ZF)) && (isFlagSet(SF) == isFlagSet(OF) ))) {
@@ -1647,17 +1251,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jae IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jae IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (!isFlagSet(CF))) {
@@ -1674,17 +1269,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "ja IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "ja IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && ((!isFlagSet(CF)) && (!isFlagSet(ZF) ))) {
@@ -1701,17 +1287,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jnp IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jnp IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (!isFlagSet(PF))) {
@@ -1728,17 +1305,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jno IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jno IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (!isFlagSet(OF))) {
@@ -1755,17 +1323,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jns IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jns IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (!isFlagSet(SF))) {
@@ -1782,17 +1341,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "loop IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "loop IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim) {
@@ -1812,17 +1362,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "loopz IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "loopz IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim) {
@@ -1842,17 +1383,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "loopnz IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "loopnz IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim) {
@@ -1872,17 +1404,8 @@ int main(int argc, char **argv) {
 
 			i32 jumpIP = ip + ip_inc8;
 
-			char jumpIPstring[11] = {0};
-			snprintf(jumpIPstring, sizeof(jumpIPstring), "%u", jumpIP);
-
-			if (writeOutput(inputFD, outputFD, "jcxz IP_") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, jumpIPstring) == EXIT_FAILURE) {
-				return EXIT_FAILURE;
-			}
-			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-				return EXIT_FAILURE;
+			if (fprintf(outputFile, "jcxz IP_%u\n", jumpIP) < 0) {
+				logFatal(inputFD, outputFile, "Error writing to output file");
 			}
 
 			if (sim && (cx.word == 0)) {
@@ -1891,94 +1414,55 @@ int main(int argc, char **argv) {
 		}
 		else {
 			fprintf(stderr, "Byte: 0x%x\n", ram[ip]);
-			logFatal(inputFD, outputFD, "Error: Unknown opcode");
+			logFatal(inputFD, outputFile, "Error: Unknown opcode");
 		}
 	}
 
-	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n\n; General Purpose Registers\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
+	if (fprintf(outputFile, "\n\n; Final Registers:\n\n; General Purpose Registers\n") < 0) {
+		logFatal(inputFD, outputFile, "Error writing to output file");
 	}
+
 	for (u8 i = 0; i < 8; i++) {
 
 		char regValueString[6] = {0};
 
 		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG_VAL(1, i));
 
-		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, (char *)getRegString(i, 1)) == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, regValueString) == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
+		if (fprintf(outputFile, ";\t%s: %s\n", (char *)getRegString(i, 1), regValueString) < 0) {
+			logFatal(inputFD, outputFile, "Error writing to output file");
 		}
 	}
-	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
+
+	if (fprintf(outputFile, "\n; Segment Registers:\n") < 0) {
+		logFatal(inputFD, outputFile, "Error writing to output file");
 	}
-	if (writeOutput(inputFD, outputFD, "; Segment Registers:\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
+
 	for (u8 i = 0; i < 4; i++) {
 
 		char regValueString[6] = {0};
 
 		snprintf(regValueString, sizeof(regValueString), "%hu", *segRegisters[i]);
 
-		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, (char *)getSRstring(i)) == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, ": ") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, regValueString) == EXIT_FAILURE) {
-			return EXIT_FAILURE;
-		}
-		if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-			return EXIT_FAILURE;
+		if (fprintf(outputFile, ";\t%s: %s\n", (char *)getSRstring(i), regValueString) < 0) {
+			logFatal(inputFD, outputFile, "Error writing to output file");
 		}
 	}
 
-	char ipString[6] = {0};
-	snprintf(ipString, sizeof(ipString), "%hu", ip);
-	if (writeOutput(inputFD, outputFD, "\n; IP: ") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
-	if (writeOutput(inputFD, outputFD, ipString) == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
-	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
+	char flagsString[10] = {0};
+	sPrintFlags(flagsString, flagsRegister);
 
-	if (writeOutput(inputFD, outputFD, "\n; Flags: ") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
-	if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
-		return EXIT_FAILURE;
-	}
-	if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
-		return EXIT_FAILURE;
+	if (fprintf(outputFile, "\n; IP: %hu\n\n; Flags: %s\n", ip, flagsString) < 0) {
+		logFatal(inputFD, outputFile, "Error writing to output file");
 	}
 
 	if (close(inputFD) == -1) {
 		perror("Error closing input file");
-		if (close(outputFD) == -1) {
+		if (fclose(outputFile) == EOF) {
 			perror("Error closing input file");
 		}
 		return EXIT_FAILURE;
 	}
-	if (close(outputFD) == -1) {
+	if (fclose(outputFile) == EOF) {
 		perror("Error closing input file");
 		return EXIT_FAILURE;
 	}

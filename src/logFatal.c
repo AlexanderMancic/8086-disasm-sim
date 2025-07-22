@@ -4,16 +4,16 @@
 
 #include "logFatal.h"
 
-void logFatal(int inputFD, int outputFD, char *errMessage) {
+void logFatal(int inputFD, FILE *outputFile, const char *errMessage) {
 	fprintf(stderr, "%s\n", errMessage);
 	if (close(inputFD) == -1) {
 		perror("Error closing input file");
-		if (close(outputFD) == -1) {
+		if (fclose(outputFile) == EOF) {
 			perror("Error closing input file");
 			exit(EXIT_FAILURE);
 		}
 	}
-	if (close(outputFD) == -1) {
+	if (fclose(outputFile) == EOF) {
 		perror("Error closing input file");
 	}
 	exit(EXIT_FAILURE);
