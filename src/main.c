@@ -169,8 +169,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
-			// FIX: somehow specifying sim && (mod == 3) breaks the code
-			if (mod == 3) {
+			if (sim && mod == 3) {
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 
@@ -577,7 +576,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
-			if (mod == 3) {
+			if (sim && mod == 3) {
 
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
@@ -670,8 +669,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
-			// FIX: can't add 'sim &&' in condition
-			if (mod == 3) {
+			if (sim && mod == 3) {
 
 				u8 dstRegOpcode;
 				u16 flagsRegBefore = flagsRegister;
@@ -866,7 +864,7 @@ int main(int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
-			if (mod == 3) {
+			if (sim && mod == 3) {
 
 				u8 msb;
 				u8 lsb;
