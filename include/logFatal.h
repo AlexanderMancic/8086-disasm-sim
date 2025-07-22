@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
-void logFatal(int inputFD, FILE *outputFile, const char *errMessage);
+#include "arena.h"
+
+void logFatal(Arena *arena, int inputFD, FILE *outputFile, const char *errMessage);
 
 #endif

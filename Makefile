@@ -31,7 +31,7 @@ SIM_TEST_LIST := \
 
 define run_test_disasm
 	@nasm -f bin $1 -o $(INPUT_BIN)
-	@# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
+	@valgrind --quiet --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
 	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
 	@nasm -f bin $(OUTPUT_ASM) -o $(OUTPUT_BIN)
 	@cmp $(INPUT_BIN) $(OUTPUT_BIN)
@@ -40,7 +40,7 @@ endef
 
 define run_test_sim
 	@nasm -f bin $1 -o $(INPUT_BIN)
-	@# valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
+	@valgrind --quiet --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
 	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM)
 	@nasm -f bin $(OUTPUT_ASM) -o $(OUTPUT_BIN)
 	@cmp $(INPUT_BIN) $(OUTPUT_BIN)
