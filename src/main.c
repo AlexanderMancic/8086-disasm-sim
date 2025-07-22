@@ -22,8 +22,6 @@
 #include "register.h"
 #include "flagsRegMask.h"
 
-#define DEBUG
-#undef DEBUG
 #define GET_REG_VAL(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
 #define SET_REG_VAL(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
 #define isFlagSet(flagMask) ((flagsRegister & flagMask) != 0)
@@ -730,24 +728,6 @@ int main(int argc, char **argv) {
 				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
 					return EXIT_FAILURE;
 				}
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
-				#endif
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
-
-					printf("     ODIT SZ A  P C\n");
-					u16 value = flagsRegister;
-					for (int i = 15; i >= 0; i--) {
-						putchar((value & (1 << i)) ? '1' : '0');
-						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
-					}
-					putchar('\n');
-				#endif
 			}
 
 			if (sim && w && mod != 3) {
@@ -1096,24 +1076,6 @@ int main(int argc, char **argv) {
 				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
 					return EXIT_FAILURE;
 				}
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
-				#endif
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
-
-					printf("     ODIT SZ A  P C\n");
-					u16 value = flagsRegister;
-					for (int i = 15; i >= 0; i--) {
-						putchar((value & (1 << i)) ? '1' : '0');
-						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
-					}
-					putchar('\n');
-				#endif
 			}
 
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
@@ -1374,24 +1336,6 @@ int main(int argc, char **argv) {
 				if (writeFlags(inputFD, outputFD, flagsRegister) == EXIT_FAILURE) {
 					return EXIT_FAILURE;
 				}
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("dst after: %hu\n", GET_REG_VAL(w, dstRegOpcode));
-				#endif
-
-				#undef DEBUG
-				#ifdef DEBUG
-					printf("SUB: SI=%u, DI=%u\n", GET_REG_VAL(1, dstRegOpcode), GET_REG_VAL(1, srcRegOpcode));
-
-					printf("     ODIT SZ A  P C\n");
-					u16 value = flagsRegister;
-					for (int i = 15; i >= 0; i--) {
-						putchar((value & (1 << i)) ? '1' : '0');
-						if (i % 4 == 0 && i != 0) putchar(' ');  // Optional: space every 4 bits
-					}
-					putchar('\n');
-				#endif
 			}
 
 			if (writeOutput(inputFD, outputFD, "\n") == EXIT_FAILURE) {
@@ -1953,14 +1897,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	#undef DEBUG
-	#ifdef DEBUG
-
-	ax.word = 9999;
-	printf("DEBUG(ax.word): %hu\n", GET_REG_VAL(1, 0));
-
-	#endif
-
 	if (writeOutput(inputFD, outputFD, "\n\n; Final Registers:\n\n; General Purpose Registers\n") == EXIT_FAILURE) {
 		return EXIT_FAILURE;
 	}
@@ -1969,9 +1905,6 @@ int main(int argc, char **argv) {
 		char regValueString[6] = {0};
 
 		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG_VAL(1, i));
-		#ifdef DEBUG
-			printf("DEBUG: %s\n", regValueString);
-		#endif
 
 		if (writeOutput(inputFD, outputFD, ";\t") == EXIT_FAILURE) {
 			return EXIT_FAILURE;
