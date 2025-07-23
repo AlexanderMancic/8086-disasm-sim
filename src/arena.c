@@ -20,10 +20,12 @@ void freeArena(Arena *arena) {
 
 u8 *allocateU8(Arena *arena, size_t allocationSize) {
 	if (arena->used + allocationSize > arena->size) return NULL;
+	arena->used += allocationSize;
 	return (u8 *)arena->base + arena->used;
 }
 
 char *allocateChar(Arena *arena, size_t allocationSize) {
 	if (arena->used + allocationSize > arena->size) return NULL;
+	arena->used += allocationSize;
 	return arena->base + arena->used;
 }

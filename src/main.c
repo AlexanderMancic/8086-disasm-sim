@@ -40,14 +40,28 @@ static const char *const arithMnemonics[8] = {
 int main(int argc, char **argv) {
 
 	bool sim = false;
-	if (argc == 4 ) {
+	bool dump = false;
+	const char *usage = "Usage: %s <infile> <outfile> [simulate [dump]]\n";
+	if (argc == 5) {
 		if (strncmp(argv[3], "simulate", 8) != 0) {
-			fprintf(stderr, "Usage: %s <infile> <outfile> [simulate]\n", argv[0]);
+			fprintf(stderr, usage, argv[0]);
+			return EXIT_FAILURE;
+		}
+		sim = true;
+
+		if (strncmp(argv[4], "dump", 4) != 0) {
+			fprintf(stderr, usage, argv[0]);
+			return EXIT_FAILURE;
+		}
+		dump = true;
+	} else if (argc == 4 ) {
+		if (strncmp(argv[3], "simulate", 8) != 0) {
+			fprintf(stderr, usage, argv[0]);
 			return EXIT_FAILURE;
 		}
 		sim = true;
 	} else if (argc != 3) {
-		fprintf(stderr, "Usage: %s <infile> <outfile> [simulate]\n", argv[0]);
+		fprintf(stderr, usage, argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -80,7 +94,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	u8 *ram = allocateU8(&arena, 65536);
+	u8 *ram = allocateU8(&arena, 65792);
 	if (fprintf(outputFile, "bits 16\n") < 0) {
 		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
 	}
@@ -117,7 +131,7 @@ int main(int argc, char **argv) {
 	if (bytesRead != inputStat.st_size) {
 		logFatal(&arena, inputFD, outputFile, "Error: Failed to read input file");
 	}
-	if (bytesRead > 65536) {
+	if (bytesRead > 65792) {
 		logFatal(&arena, inputFD, outputFile, "Error: Input file size must not exceed 65,536 bytes");
 	}
 
@@ -1307,6 +1321,48 @@ int main(int argc, char **argv) {
 
 	if (fprintf(outputFile, "\n; IP: %hu\n\n; Flags: %s\n", ip, flagsString) < 0) {
 		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+	}
+
+	if (dump) {
+		int dumpFD = open("./bin/dump.data", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (dumpFD == -1) {
+			perror("Error opening dump file");
+			if (close(inputFD) == -1) {
+				perror("Error closing input file");
+				if (fclose(outputFile) == EOF) {
+					perror("Error closing input file");
+				}
+				freeArena(&arena);
+				return EXIT_FAILURE;
+			}
+			if (fclose(outputFile) == EOF) {
+				perror("Error closing input file");
+				freeArena(&arena);
+				return EXIT_FAILURE;
+			}
+		}
+
+		ssize_t bytesWritten = write(dumpFD, arena.base + 256, (64*4*64));
+		if (bytesWritten != (64*4*64)) {
+			perror("Error writing to dump file");
+			if (close(inputFD) == -1) {
+				perror("Error closing input file");
+				if (fclose(outputFile) == EOF) {
+					perror("Error closing input file");
+				}
+				close(dumpFD);
+				freeArena(&arena);
+				return EXIT_FAILURE;
+			}
+			if (fclose(outputFile) == EOF) {
+				perror("Error closing input file");
+				close(dumpFD);
+				freeArena(&arena);
+				return EXIT_FAILURE;
+			}
+		}
+
+		close(dumpFD);
 	}
 
 	if (close(inputFD) == -1) {

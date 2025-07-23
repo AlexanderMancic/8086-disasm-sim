@@ -355,6 +355,8 @@ clean:
 	@rm -rf ./obj ./bin
 	@rm -f ./asm/output.asm
 
+build: $(TARGET)
+
 bin obj:
 	@mkdir -p $@
 
