@@ -27,7 +27,8 @@ SIM_TEST_LIST := \
 	test_sim_imm_to_accumulator_add_sub_cmp test_sim_listing_0048_ip_register \
 	test_sim_listing_0049_conditional_jumps test_sim_listing_0050_challenge_jumps \
 	test_sim_all_conditional_jumps_and_loops test_sim_listing_0051_memory_mov \
-	test_sim_listing_0052_memory_add_loop test_sim_listing_0053_add_loop_challenge
+	test_sim_listing_0052_memory_add_loop test_sim_listing_0053_add_loop_challenge \
+	test_sim_listing_0054_draw_rectangle
 
 define run_test_disasm
 	@nasm -f bin $1 -o $(INPUT_BIN)
@@ -339,6 +340,15 @@ test_sim_listing_0053_add_loop_challenge: $(TARGET)
 	@grep -q ";.*dx: 6" $(OUTPUT_ASM)
 	@grep -q ";.*bp: 998" $(OUTPUT_ASM)
 	@grep -q "; IP: 33" $(OUTPUT_ASM)
+	@grep -q "; Flags: PZ" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
+
+test_sim_listing_0054_draw_rectangle: $(TARGET)
+	@$(call run_test_sim,./asm/sim/listing_0054_draw_rectangle.asm)
+	@grep -q ";.*cx: 64" $(OUTPUT_ASM)
+	@grep -q ";.*dx: 64" $(OUTPUT_ASM)
+	@grep -q ";.*bp: 16640" $(OUTPUT_ASM)
+	@grep -q "; IP: 38" $(OUTPUT_ASM)
 	@grep -q "; Flags: PZ" $(OUTPUT_ASM)
 	@echo "PASS SIM: $@"
 

@@ -122,6 +122,12 @@ u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
 				}
 			}
 
+			if (srcLoNibble > dstLoNibble) {
+				*flagsRegister |= AF;
+			} else {
+				*flagsRegister &= (u16)~AF;
+			}
+
 			if (src > dst) {
 				*flagsRegister |= CF;
 			} else {

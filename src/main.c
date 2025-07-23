@@ -642,183 +642,22 @@ int main(int argc, char **argv) {
 
 			if (sim && mod == 3) {
 
-				u8 msb;
-				u8 lsb;
-				u8 setLSBbits = 0;
 				u16 flagsRegBefore = flagsRegister;
 				u16 result;
-				u16 dstRegVal;
-				u16 srcRegVal;
+				u16 regVal;
+				u16 immVal;
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 				char flagsStringBefore[10] = {0};
 				char flagsStringAfter[10] = {0};
 
-				dstRegVal = GET_REG_VAL(w, rm);
-				srcRegVal = (u16)imm;
+				regVal = GET_REG_VAL(w, rm);
+				immVal = (u16)imm;
 
-				u8 dstLoNibble = dstRegVal & 0b1111;
-				u8 srcLoNibble = srcRegVal & 0b1111;
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", regVal);
 
-				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
-
-				switch (arithOpcode) {
-					// add
-					case 0: {
-
-						if (w) {
-
-							if ((dstRegVal + srcRegVal) > 65535) {
-								flagsRegister |= CF;
-							} else {
-							flagsRegister &= (u16)~CF;
-							}
-
-							if (
-								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-
-						} else {
-							if ((dstRegVal + srcRegVal) > 255) {
-								flagsRegister |= CF;
-							} else {
-							flagsRegister &= (u16)~CF;
-							}
-
-							if (
-								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-
-						if ((dstLoNibble + srcLoNibble) > 15) {
-							flagsRegister |= AF;
-						} else {
-							flagsRegister &= (u16)~AF;
-						}
-
-						SET_REG_VAL(
-							w,
-							rm,
-							(dstRegVal + srcRegVal)
-						);
-
-						result = GET_REG_VAL(w, rm);
-
-						break;
-					}
-					// sub
-					case 5: {
-
-						if (w) {
-							if (
-								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						} else {
-							if (
-								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-						
-						if (srcLoNibble > dstLoNibble) {
-							flagsRegister |= AF;
-						} else {
-							flagsRegister &= (u16)~AF;
-						}
-
-						if (srcRegVal > dstRegVal) {
-							flagsRegister |= CF;
-						} else {
-							flagsRegister &= (u16)~CF;
-						}
-
-						result = dstRegVal - srcRegVal;
-						SET_REG_VAL(w, rm, result);
-						break;
-					}
-					// cmp
-					case 7: {
-						if (w) {
-							if (
-								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
-								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						} else {
-							if (
-								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
-								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
-							) {
-								flagsRegister |= OF;
-							} else {
-								flagsRegister &= (u16)~OF;
-							}
-						}
-
-						if (srcRegVal > dstRegVal) {
-							flagsRegister |= CF;
-						} else {
-							flagsRegister &= (u16)~CF;
-						}
-
-						result = dstRegVal - srcRegVal;
-						break;
-					}
-				}
-
-				if (w) {
-					Register splitResult = { .word = result };
-					lsb = splitResult.byte.lo;
-					msb = splitResult.byte.hi;
-				} else {
-					lsb = (u8)result;
-					msb = lsb;
-				}
-
-				while (lsb) {
-					setLSBbits += lsb & 1;
-					lsb >>= 1;
-				}
-
-				if (setLSBbits % 2 == 0) {
-					flagsRegister |= PF;
-				} else {
-					flagsRegister &= (u16)~PF;
-				}
-
-				if (result == 0) {
-					flagsRegister |= ZF;
-				} else {
-					flagsRegister &= (u16)~ZF;
-				}
-
-				if ((msb >> 7) == 1) {
-					flagsRegister |= SF;
-				} else {
-					flagsRegister &= (u16)~SF;
-				}
+				result = doArithmetic(regVal, immVal, &flagsRegister, arithOpcode, w);
+				SET_REG_VAL(w, rm, result);
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, rm));
 
