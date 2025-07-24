@@ -741,7 +741,7 @@ int main(int argc, char **argv) {
 				goto cleanup;
 			}
 
-			{
+			if (sim) {
 
 				u8 msb;
 				u8 lsb;
