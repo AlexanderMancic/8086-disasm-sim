@@ -14,7 +14,6 @@
 #include "getSRstring.h"
 #include "types.h"
 #include "sPrintFlags.h"
-#include "logFatal.h"
 #include "getRegString.h"
 #include "constants.h"
 #include "writeRmString.h"
@@ -82,21 +81,14 @@ int main(int argc, char **argv) {
 
 	Arena arena;
 	if (!initializeArena(&arena, MiB)) {
-		if (close(inputFD) == -1) {
-			perror("Error closing input file");
-			if (fclose(outputFile) == EOF) {
-				perror("Error closing input file");
-			}
-		}
-		if (fclose(outputFile) == EOF) {
-			perror("Error closing input file");
-		}
-		return EXIT_FAILURE;
+		fprintf(stderr, "Error allocating memory\n");
+		goto cleanup;
 	}
 
-	u8 *ram = allocateU8(&arena, 65792);
+	u8 *ram = allocateU8(&arena, 65536);
 	if (fprintf(outputFile, "bits 16\n") < 0) {
-		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+		fprintf(stderr, "Error writing to output file\n");
+		goto cleanup;
 	}
 
 	u16 ip = 0;
@@ -123,22 +115,25 @@ int main(int argc, char **argv) {
 
 	struct stat inputStat;
 	if (fstat(inputFD, &inputStat) == -1) {
-		perror("Error: Failed to read stats of input file");
-		logFatal(&arena, inputFD, outputFile, "");
+		perror("Error reading stats of input file\n");
+		goto cleanup;
 	}
 
 	ssize_t bytesRead = read(inputFD, ram, (size_t)inputStat.st_size);
 	if (bytesRead != inputStat.st_size) {
-		logFatal(&arena, inputFD, outputFile, "Error: Failed to read input file");
+		fprintf(stderr, "Error reading input file\n");
+		goto cleanup;
 	}
-	if (bytesRead > 65792) {
-		logFatal(&arena, inputFD, outputFile, "Error: Input file size must not exceed 65,536 bytes");
+	if (bytesRead > 65536) {
+		fprintf(stderr, "Error: Input file size must not exceed 65,536 bytes\n");
+		goto cleanup;
 	}
 
 	while (ip < bytesRead) {
 
 		if (fprintf(outputFile, "IP_%u:\n", ip) < 0) {
-			logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+			fprintf(stderr, "Error writing to output file\n");
+			goto cleanup;
 		}
 
 		// mov r/m to/from reg
@@ -164,13 +159,15 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to get displacement value");
+					fprintf(stderr, "Error getting displacement value\n");
+					goto cleanup;
 				}
 			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error writing rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
@@ -183,7 +180,8 @@ int main(int argc, char **argv) {
 			}
 
 			if (fprintf(outputFile, "mov %s, %s", dst, src) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && mod == 3) {
@@ -201,14 +199,16 @@ int main(int argc, char **argv) {
 				}
 
 				if (fprintf(outputFile, " ; %s: %s -> %s", dst, beforeRegValue, afterRegValue) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (sim && mod != 3) {
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to calculate address");
+					fprintf(stderr, "Error calculating address\n");
+					goto cleanup;
 				}
 
 				char addressString[6] = {0};
@@ -241,12 +241,14 @@ int main(int argc, char **argv) {
 				}
 
 				if (fprintf(outputFile, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// mov imm to r/m
@@ -267,13 +269,15 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to get displacement value");
+					fprintf(stderr, "Error getting displacement value\n");
+					goto cleanup;
 				}
 			}
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error writing rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
@@ -293,14 +297,16 @@ int main(int argc, char **argv) {
 			}
 
 			if (fprintf(outputFile, "mov %s %s, %s \n", sizeSpecifier[w], rmString, immString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			// TODO: write to output simulation comment
 			if (sim) {
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to calculate address");
+					fprintf(stderr, "Error calculating address\n");
+					goto cleanup;
 				}
 
 				Register splitImm = { .word = imm };
@@ -332,7 +338,8 @@ int main(int argc, char **argv) {
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
 			if (fprintf(outputFile, "mov %s, %s", regString, immString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			char beforeRegValue[6] = {0};
@@ -343,7 +350,8 @@ int main(int argc, char **argv) {
 			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(w, reg));
 
 			if (fprintf(outputFile, " ; %s: %s -> %s \n", regString, beforeRegValue, afterRegValue) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// mov memory to accumulator
@@ -361,7 +369,8 @@ int main(int argc, char **argv) {
 			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
 			if (fprintf(outputFile, "mov %s, %s\n", (char *)accumulatorString[w], addrString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// mov accumulator to memory
@@ -379,7 +388,8 @@ int main(int argc, char **argv) {
 			snprintf(addrString, sizeof(addrString), "[%hu]", addr);
 
 			if (fprintf(outputFile, "mov %s, %s\n", addrString, (char *)accumulatorString[w]) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// mov rm to sr
@@ -397,14 +407,16 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error: Failed to write rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
 			if (fprintf(outputFile, "mov %s, %s", srString, rmString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (mod == 3) {
@@ -417,12 +429,14 @@ int main(int argc, char **argv) {
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", *segRegisters[sr]);
 
 				if (fprintf(outputFile, " ; %s: %s -> %s", srString, beforeRegValue, afterRegValue) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// mov sr to rm
@@ -440,14 +454,16 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, 1);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error writing rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
 			strncpy(srString, getSRstring(sr), 3);
 
 			if (fprintf(outputFile, "mov %s, %s", rmString, srString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && mod == 3) {
@@ -460,12 +476,14 @@ int main(int argc, char **argv) {
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(1, rm));
 
 				if (fprintf(outputFile, " ; %s: %s -> %s", rmString, beforeRegValue, afterRegValue) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// add/sub/cmp r/m with/and reg to either
@@ -491,7 +509,8 @@ int main(int argc, char **argv) {
 			if (sim) {
 				disp = getDisplacement(&ram[ip], mod, rm);
 				if (disp == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to get displacement value");
+					fprintf(stderr, "Error getting displacement value\n");
+					goto cleanup;
 				}
 			}
 
@@ -500,7 +519,8 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error writing rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
@@ -513,7 +533,8 @@ int main(int argc, char **argv) {
 			}
 
 			if (fprintf(outputFile, "%s %s, %s", arithMnemonic, dst, src) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && mod == 3) {
@@ -548,7 +569,8 @@ int main(int argc, char **argv) {
 				sPrintFlags(flagsStringBefore, flagsRegBefore);
 				sPrintFlags(flagsStringAfter, flagsRegister);
 				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
@@ -556,7 +578,8 @@ int main(int argc, char **argv) {
 				
 				i32 address = getAddress(registersW1, (u16)disp, mod, rm);
 				if (address == -1) {
-					logFatal(&arena, inputFD, outputFile, "Error: Failed to calculate address");
+					fprintf(stderr, "Error calculating address\n");
+					goto cleanup;
 				}
 
 				char addressString[6] = {0};
@@ -591,12 +614,14 @@ int main(int argc, char **argv) {
 				}
 
 				if (fprintf(outputFile, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// add/sub/cmp imm to/from/with r/m
@@ -620,7 +645,8 @@ int main(int argc, char **argv) {
 
 			i8 ipOffset = writeRmString(rmString, &ram[ip], mod, rm, w);
 			if (ipOffset == -1) {
-				logFatal(&arena, inputFD, outputFile, "Error: Failed to write rm string to buffer");
+				fprintf(stderr, "Error writing rm string to buffer\n");
+				goto cleanup;
 			}
 			ip += (u16)ipOffset;
 
@@ -651,7 +677,8 @@ int main(int argc, char **argv) {
 			}
 
 			if (fprintf(outputFile, "%s %s, %s", arithMnemonic, rmString, immString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && mod == 3) {
@@ -678,12 +705,14 @@ int main(int argc, char **argv) {
 				sPrintFlags(flagsStringBefore, flagsRegBefore);
 				sPrintFlags(flagsStringAfter, flagsRegister);
 				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// add/sub/cmp imm to/from/with accumulator
@@ -708,7 +737,8 @@ int main(int argc, char **argv) {
 			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
 			if (fprintf(outputFile, "%s %s, %s", (char *)arithMnemonics[arithOpcode], (char *)accumulatorString[w], immString) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			{
@@ -903,12 +933,14 @@ int main(int argc, char **argv) {
 				sPrintFlags(flagsStringBefore, flagsRegBefore);
 				sPrintFlags(flagsStringAfter, flagsRegister);
 				if (fprintf(outputFile, " ; %s: %s -> %s | Flags: %s -> %s", rmString, beforeRegValue, afterRegValue, flagsStringBefore, flagsStringAfter) < 0) {
-					logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+					fprintf(stderr, "Error writing to output file\n");
+					goto cleanup;
 				}
 			}
 
 			if (fprintf(outputFile, "\n") < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 		}
 		// je / jz
@@ -922,7 +954,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jz IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(ZF) )) {
@@ -940,7 +973,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jl IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) != isFlagSet(OF) )) {
@@ -958,7 +992,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jle IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && ( isFlagSet(ZF) || ((isFlagSet(SF) != isFlagSet(OF)) ))) {
@@ -976,7 +1011,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jb IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(CF) )) {
@@ -994,7 +1030,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jbe IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && ((isFlagSet(ZF)) || (isFlagSet(CF)) )) {
@@ -1012,7 +1049,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jp IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(PF) )) {
@@ -1030,7 +1068,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jo IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(OF) )) {
@@ -1048,7 +1087,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "js IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) )) {
@@ -1066,7 +1106,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jnz IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(ZF) )) {
@@ -1084,7 +1125,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jge IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) == isFlagSet(OF) )) {
@@ -1102,7 +1144,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jg IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && ((!isFlagSet(ZF)) && (isFlagSet(SF) == isFlagSet(OF) ))) {
@@ -1120,7 +1163,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jae IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(CF))) {
@@ -1138,7 +1182,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "ja IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && ((!isFlagSet(CF)) && (!isFlagSet(ZF) ))) {
@@ -1156,7 +1201,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jnp IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(PF))) {
@@ -1174,7 +1220,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jno IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(OF))) {
@@ -1192,7 +1239,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jns IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(SF))) {
@@ -1210,7 +1258,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "loop IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim) {
@@ -1231,7 +1280,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "loopz IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim) {
@@ -1252,7 +1302,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "loopnz IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim) {
@@ -1273,7 +1324,8 @@ int main(int argc, char **argv) {
 			i32 jumpIP = ip + ip_inc8;
 
 			if (fprintf(outputFile, "jcxz IP_%u\n", jumpIP) < 0) {
-				logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+				fprintf(stderr, "Error writing to output file\n");
+				goto cleanup;
 			}
 
 			if (sim && (cx.word == 0)) {
@@ -1282,12 +1334,14 @@ int main(int argc, char **argv) {
 		}
 		else {
 			fprintf(stderr, "Byte: 0x%x\n", ram[ip]);
-			logFatal(&arena, inputFD, outputFile, "Error: Unknown opcode");
+			fprintf(stderr, "Error: Unknown opcode\n");
+			goto cleanup;
 		}
 	}
 
 	if (fprintf(outputFile, "\n\n; Final Registers:\n\n; General Purpose Registers\n") < 0) {
-		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+		fprintf(stderr, "Error writing to output file\n");
+		goto cleanup;
 	}
 
 	for (u8 i = 0; i < 8; i++) {
@@ -1297,12 +1351,14 @@ int main(int argc, char **argv) {
 		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG_VAL(1, i));
 
 		if (fprintf(outputFile, ";\t%s: %s\n", (char *)getRegString(i, 1), regValueString) < 0) {
-			logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+			fprintf(stderr, "Error writing to output file\n");
+			goto cleanup;
 		}
 	}
 
 	if (fprintf(outputFile, "\n; Segment Registers:\n") < 0) {
-		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+		fprintf(stderr, "Error writing to output file\n");
+		goto cleanup;
 	}
 
 	for (u8 i = 0; i < 4; i++) {
@@ -1312,7 +1368,8 @@ int main(int argc, char **argv) {
 		snprintf(regValueString, sizeof(regValueString), "%hu", *segRegisters[i]);
 
 		if (fprintf(outputFile, ";\t%s: %s\n", (char *)getSRstring(i), regValueString) < 0) {
-			logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+			fprintf(stderr, "Error writing to output file\n");
+			goto cleanup;
 		}
 	}
 
@@ -1320,65 +1377,37 @@ int main(int argc, char **argv) {
 	sPrintFlags(flagsString, flagsRegister);
 
 	if (fprintf(outputFile, "\n; IP: %hu\n\n; Flags: %s\n", ip, flagsString) < 0) {
-		logFatal(&arena, inputFD, outputFile, "Error writing to output file");
+		fprintf(stderr, "Error writing to output file\n");
+		goto cleanup;
 	}
 
 	if (dump) {
 		int dumpFD = open("./bin/dump.data", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (dumpFD == -1) {
 			perror("Error opening dump file");
-			if (close(inputFD) == -1) {
-				perror("Error closing input file");
-				if (fclose(outputFile) == EOF) {
-					perror("Error closing input file");
-				}
-				freeArena(&arena);
-				return EXIT_FAILURE;
-			}
-			if (fclose(outputFile) == EOF) {
-				perror("Error closing input file");
-				freeArena(&arena);
-				return EXIT_FAILURE;
-			}
+			goto cleanup;
 		}
 
 		ssize_t bytesWritten = write(dumpFD, arena.base + 256, (64*4*64));
-		if (bytesWritten != (64*4*64)) {
+		if (bytesWritten != (64*4*65)) {
 			perror("Error writing to dump file");
-			if (close(inputFD) == -1) {
-				perror("Error closing input file");
-				if (fclose(outputFile) == EOF) {
-					perror("Error closing input file");
-				}
-				close(dumpFD);
-				freeArena(&arena);
-				return EXIT_FAILURE;
-			}
-			if (fclose(outputFile) == EOF) {
-				perror("Error closing input file");
-				close(dumpFD);
-				freeArena(&arena);
-				return EXIT_FAILURE;
-			}
 		}
 
-		close(dumpFD);
+		if (close(dumpFD) == -1) {
+			perror("Error closing dump file");
+		}
 	}
 
+cleanup:
+	int errorCode = EXIT_SUCCESS;
 	if (close(inputFD) == -1) {
 		perror("Error closing input file");
-		if (fclose(outputFile) == EOF) {
-			perror("Error closing input file");
-		}
-		freeArena(&arena);
-		return EXIT_FAILURE;
+		errorCode = EXIT_FAILURE;
 	}
 	if (fclose(outputFile) == EOF) {
-		perror("Error closing input file");
-		freeArena(&arena);
-		return EXIT_FAILURE;
+		perror("Error closing output file");
+		errorCode = EXIT_FAILURE;
 	}
-
 	freeArena(&arena);
-	return EXIT_SUCCESS;
+	return errorCode;
 }
