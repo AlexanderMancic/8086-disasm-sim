@@ -45,7 +45,7 @@ define run_test_sim
 	@cmp $(INPUT_BIN) $(OUTPUT_BIN)
 	@echo "PASS DISASM: $@"
 
-	@$(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
+	@valgrind --quiet --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 $(TARGET) $(INPUT_BIN) $(OUTPUT_ASM) simulate
 endef
 
 .PHONY: \
@@ -218,6 +218,7 @@ test_sim_listing_46: $(TARGET)
 	@grep -q "^sub .*bx, .*cx ; .* | Flags:.* -> S" $(OUTPUT_ASM)
 	@grep -q "^cmp .*bp, .*sp ; .* | Flags:.* -> " $(OUTPUT_ASM)
 	@grep -q "^sub .*bp, .*2026 ; .* | Flags:.* -> PZ" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
 
 test_sim_listing_47: $(TARGET)
 	$(call run_test_sim,./asm/sim/listing_0047_challenge_flags.asm)
@@ -243,6 +244,7 @@ test_sim_listing_47: $(TARGET)
 	@grep -q "^add .*bx, .*40000 ; .* | Flags:.* -> PS" $(OUTPUT_ASM)
 	@grep -q "^add .*cx, .*65446 ; .* | Flags:.* -> CPAZ" $(OUTPUT_ASM)
 	@grep -q "^cmp .*bp, .*sp ; .* | Flags:.* -> CPAS" $(OUTPUT_ASM)
+	@echo "PASS SIM: $@"
 
 test_sim_imm_to_accumulator_add_sub_cmp: $(TARGET)
 	$(call run_test_sim,./asm/sim/imm_to_accumulator_add_sub_cmp.asm)

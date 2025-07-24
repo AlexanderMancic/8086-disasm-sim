@@ -1,3 +1,5 @@
+#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -5,7 +7,11 @@
 
 bool initializeArena(Arena *arena, size_t capacity) {
 	arena->base = malloc(capacity);
-	if (arena->base == NULL) return false;
+	if (arena->base == NULL) {
+		perror("Error allocating Arena memory");
+		return false;
+	}
+	memset(arena->base, 0, capacity);
 	arena->size = capacity;
 	arena->used = 0;
 	return true;
