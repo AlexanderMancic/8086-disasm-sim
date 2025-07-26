@@ -566,7 +566,7 @@ int main(int argc, char **argv) {
 
 				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
 
-				result = doArithmetic(dstRegVal, srcRegVal, &flagsRegister, inst.arithOpcode, inst.w);
+				result = doArithmetic(dstRegVal, srcRegVal, &flagsRegister, &inst);
 				SET_REG_VAL(inst.w, dstRegOpcode, result);
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, dstRegOpcode));
@@ -598,7 +598,7 @@ int main(int argc, char **argv) {
 				if (inst.d) {
 					snprintf(beforeValue, sizeof(beforeValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 
-					u16 result = doArithmetic(GET_REG_VAL(inst.w, inst.reg), val.word, &flagsRegister, inst.arithOpcode, inst.w);
+					u16 result = doArithmetic(GET_REG_VAL(inst.w, inst.reg), val.word, &flagsRegister, &inst);
 					SET_REG_VAL(inst.w, inst.reg, result);
 
 					snprintf(afterValue, sizeof(afterValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
@@ -608,7 +608,7 @@ int main(int argc, char **argv) {
 					beforeVal.byte.hi = ram[address + 1];
 					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 
-					u16 result = doArithmetic(val.word, GET_REG_VAL(inst.w, inst.reg), &flagsRegister, inst.arithOpcode, inst.w);
+					u16 result = doArithmetic(val.word, GET_REG_VAL(inst.w, inst.reg), &flagsRegister, &inst);
 					val.word = result;
 					ram[address] = val.byte.lo;
 					ram[address + 1] = val.byte.hi;
@@ -702,7 +702,7 @@ int main(int argc, char **argv) {
 
 				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", regVal);
 
-				result = doArithmetic(regVal, immVal, &flagsRegister, inst.arithOpcode, inst.w);
+				result = doArithmetic(regVal, immVal, &flagsRegister, &inst);
 				SET_REG_VAL(inst.w, inst.rm, result);
 
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, inst.rm));

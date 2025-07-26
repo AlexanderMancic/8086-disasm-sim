@@ -4,7 +4,7 @@
 #include "flagsRegMask.h"
 #include "register.h"
 
-u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
+u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, Instruction *inst) {
 
 	u8 dstLoNibble = dst & 0b1111;
 	u8 srcLoNibble = src & 0b1111;
@@ -14,11 +14,11 @@ u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
 	u16 result;
 	bool storeResult = true;
 
-	switch (arithOpcode) {
+	switch (inst->arithOpcode) {
 		// add
 		case 0: {
 
-			if (w) {
+			if (inst->w) {
 
 				if ((dst + src) > 65535) {
 					*flagsRegister |= CF;
@@ -65,7 +65,7 @@ u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
 		// sub
 		case 5: {
 
-			if (w) {
+			if (inst->w) {
 				if (
 					((((i16)dst) - ((i16)src)) > 32767) ||
 					((((i16)dst) - ((i16)src)) < -32768)
@@ -102,7 +102,7 @@ u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
 		}
 		// cmp
 		case 7: {
-			if (w) {
+			if (inst->w) {
 				if (
 					((((i16)dst) - ((i16)src)) > 32767) ||
 					((((i16)dst) - ((i16)src)) < -32768)
@@ -140,7 +140,7 @@ u16 doArithmetic(u16 dst, u16 src, u16 *flagsRegister, u8 arithOpcode, u8 w) {
 		}
 	}
 
-	if (w) {
+	if (inst->w) {
 		Register splitResult = { .word = result };
 		lsb = splitResult.byte.lo;
 		msb = splitResult.byte.hi;
