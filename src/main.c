@@ -11,6 +11,7 @@
 #include "doArithmetic.h"
 #include "getDisplacement.h"
 #include "getAddress.h"
+#include "getOpcode.h"
 #include "getSRstring.h"
 #include "types.h"
 #include "sPrintFlags.h"
@@ -141,8 +142,13 @@ int main(int argc, char **argv) {
 			goto cleanup;
 		}
 
+		if (!GetOpcode(&inst, ram[ip])) {
+			fprintf(stderr, "Error getting opcode\n");
+			goto cleanup;
+		}
+
 		// mov r/m to/from reg
-		if (ram[ip] >> 2 == 0b100010) {
+		if (inst.opcode == 0b100010) {
 
 			inst.d = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
@@ -257,7 +263,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov imm to r/m
-		else if (ram[ip] >> 1 == 0b1100011) {
+		else if (inst.opcode == 0b1100011) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -320,7 +326,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov imm to reg
-		else if (ram[ip] >> 4 == 0b1011) {
+		else if (inst.opcode == 0b1011) {
 
 			inst.w = (ram[ip] >> 3) & 1;
 			inst.reg = ram[ip] & 0b111;
@@ -360,7 +366,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov memory to accumulator
-		else if (ram[ip] >> 1 == 0b1010000) {
+		else if (inst.opcode == 0b1010000) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -379,7 +385,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov accumulator to memory
-		else if (ram[ip] >> 1 == 0b1010001) {
+		else if (inst.opcode == 0b1010001) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -398,7 +404,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov rm to sr
-		else if (ram[ip] == 0b10001110) {
+		else if (inst.opcode == 0b10001110) {
 
 			ip += 1;
 
@@ -445,7 +451,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// mov sr to rm
-		else if (ram[ip] == 0b10001100) {
+		else if (inst.opcode == 0b10001100) {
 
 			ip += 1;
 
@@ -630,7 +636,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// add/sub/cmp imm to/from/with r/m
-		else if (ram[ip] >> 2 == 0b100000) {
+		else if (inst.opcode == 0b100000) {
 
 			inst.s = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
@@ -949,7 +955,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// je / jz
-		else if (ram[ip] == 0b01110100) {
+		else if (inst.opcode == 0b01110100) {
 
 			ip += 1;
 
@@ -968,7 +974,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jl / jnge
-		else if (ram[ip] == 0b01111100) {
+		else if (inst.opcode == 0b01111100) {
 
 			ip += 1;
 
@@ -987,7 +993,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jle / jng
-		else if (ram[ip] == 0b01111110) {
+		else if (inst.opcode == 0b01111110) {
 
 			ip += 1;
 
@@ -1006,7 +1012,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jb / jnae
-		else if (ram[ip] == 0b01110010) {
+		else if (inst.opcode == 0b01110010) {
 
 			ip += 1;
 
@@ -1025,7 +1031,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jbe / jna
-		else if (ram[ip] == 0b01110110) {
+		else if (inst.opcode == 0b01110110) {
 
 			ip += 1;
 
@@ -1044,7 +1050,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jp / jpe
-		else if (ram[ip] == 0b01111010) {
+		else if (inst.opcode == 0b01111010) {
 
 			ip += 1;
 
@@ -1063,7 +1069,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jo
-		else if (ram[ip] == 0b01110000) {
+		else if (inst.opcode == 0b01110000) {
 
 			ip += 1;
 
@@ -1082,7 +1088,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// js
-		else if (ram[ip] == 0b01111000) {
+		else if (inst.opcode == 0b01111000) {
 
 			ip += 1;
 
@@ -1101,7 +1107,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jne / jnz
-		else if (ram[ip] == 0b01110101) {
+		else if (inst.opcode == 0b01110101) {
 
 			ip += 1;
 
@@ -1120,7 +1126,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnl / jge
-		else if (ram[ip] == 0b01111101) {
+		else if (inst.opcode == 0b01111101) {
 
 			ip += 1;
 
@@ -1139,7 +1145,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnle / jg
-		else if (ram[ip] == 0b01111111) {
+		else if (inst.opcode == 0b01111111) {
 
 			ip += 1;
 
@@ -1158,7 +1164,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnb / jae
-		else if (ram[ip] == 0b01110011) {
+		else if (inst.opcode == 0b01110011) {
 
 			ip += 1;
 
@@ -1177,7 +1183,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnbe / ja
-		else if (ram[ip] == 0b01110111) {
+		else if (inst.opcode == 0b01110111) {
 
 			ip += 1;
 
@@ -1196,7 +1202,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jnp / jpo
-		else if (ram[ip] == 0b01111011) {
+		else if (inst.opcode == 0b01111011) {
 
 			ip += 1;
 
@@ -1215,7 +1221,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jno
-		else if (ram[ip] == 0b01110001) {
+		else if (inst.opcode == 0b01110001) {
 
 			ip += 1;
 
@@ -1234,7 +1240,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jns
-		else if (ram[ip] == 0b01111001) {
+		else if (inst.opcode == 0b01111001) {
 
 			ip += 1;
 
@@ -1253,7 +1259,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loop
-		else if (ram[ip] == 0b11100010) {
+		else if (inst.opcode == 0b11100010) {
 
 			ip += 1;
 
@@ -1275,7 +1281,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loopz / loope
-		else if (ram[ip] == 0b11100001) {
+		else if (inst.opcode == 0b11100001) {
 
 			ip += 1;
 
@@ -1297,7 +1303,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// loopnz / loopne
-		else if (ram[ip] == 0b11100000) {
+		else if (inst.opcode == 0b11100000) {
 
 			ip += 1;
 
@@ -1319,7 +1325,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jcxz
-		else if (ram[ip] == 0b11100011) {
+		else if (inst.opcode == 0b11100011) {
 
 			ip += 1;
 
