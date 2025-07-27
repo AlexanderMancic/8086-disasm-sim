@@ -5,6 +5,8 @@
 
 typedef struct {
 
+    i32 jumpIP;
+
     Register data;
 
     u16 addr;

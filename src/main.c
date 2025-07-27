@@ -22,6 +22,7 @@
 #include "flagsRegMask.h"
 #include "arena.h"
 #include "instruction.h"
+#include "decode_conditional_jump_or_loop.h"
 
 #define GET_REG_VAL(w, reg) ((w) ? *registersW1[reg] : *registersW0[reg])
 #define SET_REG_VAL(w, reg, val) ((w) ? (*registersW1[reg] = ((u16)val)) : (*registersW0[reg] = ((u8)val)))
@@ -957,318 +958,233 @@ int main(int argc, char **argv) {
 		// je / jz
 		else if (inst.opcode == 0b01110100) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jz IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jz IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(ZF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jl / jnge
 		else if (inst.opcode == 0b01111100) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jl IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jl IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) != isFlagSet(OF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jle / jng
 		else if (inst.opcode == 0b01111110) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jle IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jle IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && ( isFlagSet(ZF) || ((isFlagSet(SF) != isFlagSet(OF)) ))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jb / jnae
 		else if (inst.opcode == 0b01110010) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jb IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jb IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(CF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jbe / jna
 		else if (inst.opcode == 0b01110110) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jbe IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jbe IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && ((isFlagSet(ZF)) || (isFlagSet(CF)) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jp / jpe
 		else if (inst.opcode == 0b01111010) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jp IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jp IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(PF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jo
 		else if (inst.opcode == 0b01110000) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jo IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jo IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(OF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// js
 		else if (inst.opcode == 0b01111000) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "js IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "js IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jne / jnz
 		else if (inst.opcode == 0b01110101) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jnz IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jnz IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(ZF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jnl / jge
 		else if (inst.opcode == 0b01111101) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jge IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jge IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (isFlagSet(SF) == isFlagSet(OF) )) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jnle / jg
 		else if (inst.opcode == 0b01111111) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jg IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jg IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && ((!isFlagSet(ZF)) && (isFlagSet(SF) == isFlagSet(OF) ))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jnb / jae
 		else if (inst.opcode == 0b01110011) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jae IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jae IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(CF))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jnbe / ja
 		else if (inst.opcode == 0b01110111) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "ja IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "ja IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && ((!isFlagSet(CF)) && (!isFlagSet(ZF) ))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jnp / jpo
 		else if (inst.opcode == 0b01111011) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jnp IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jnp IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(PF))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jno
 		else if (inst.opcode == 0b01110001) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jno IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jno IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(OF))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// jns
 		else if (inst.opcode == 0b01111001) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jns IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jns IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (!isFlagSet(SF))) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		// loop
 		else if (inst.opcode == 0b11100010) {
+			
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			ip += 1;
-
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "loop IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "loop IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
@@ -1276,21 +1192,16 @@ int main(int argc, char **argv) {
 			if (sim) {
 				cx.word--;
 				if (cx.word  != 0) {
-					ip = (u16)jumpIP;
+					ip = (u16)inst.jumpIP;
 				}
 			}
 		}
 		// loopz / loope
 		else if (inst.opcode == 0b11100001) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "loopz IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "loopz IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
@@ -1298,21 +1209,16 @@ int main(int argc, char **argv) {
 			if (sim) {
 				cx.word--;
 				if ((cx.word  != 0) && isFlagSet(ZF)) {
-					ip = (u16)jumpIP;
+					ip = (u16)inst.jumpIP;
 				}
 			}
 		}
 		// loopnz / loopne
 		else if (inst.opcode == 0b11100000) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "loopnz IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "loopnz IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
@@ -1320,27 +1226,22 @@ int main(int argc, char **argv) {
 			if (sim) {
 				cx.word -= 1;
 				if ((cx.word  != 0) && (!isFlagSet(ZF))) {
-					ip = (u16)jumpIP;
+					ip = (u16)inst.jumpIP;
 				}
 			}
 		}
 		// jcxz
 		else if (inst.opcode == 0b11100011) {
 
-			ip += 1;
+			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
-			inst.ip_inc8 = (i8)ram[ip];
-			ip += 1;
-
-			i32 jumpIP = ip + inst.ip_inc8;
-
-			if (fprintf(outputFile, "jcxz IP_%u\n", jumpIP) < 0) {
+			if (fprintf(outputFile, "jcxz IP_%u\n", inst.jumpIP) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				goto cleanup;
 			}
 
 			if (sim && (cx.word == 0)) {
-				ip = (u16)jumpIP;
+				ip = (u16)inst.jumpIP;
 			}
 		}
 		else {
