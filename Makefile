@@ -1,10 +1,10 @@
-CC := gcc
-CFLAGS := -Wall -Wextra -Werror -pedantic -Iinclude -std=c23 -g
-CFLAGS += -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wconversion
+CC := g++
+CFLAGS := -Wall -Wextra -Werror -pedantic -Iinclude -std=c++23 -g
+CFLAGS += -Wshadow -Wconversion
 
 TARGET := ./bin/program
-SRC := $(wildcard src/*.c)
-OBJ := $(patsubst src/%.c, obj/%.o, $(SRC))
+SRC := $(wildcard src/*.cpp)
+OBJ := $(patsubst src/%.cpp, obj/%.o, $(SRC))
 
 INPUT_BIN := ./bin/input
 OUTPUT_ASM := ./asm/output.asm
@@ -365,6 +365,6 @@ bin obj:
 $(TARGET): $(OBJ) | bin
 	@$(CC) $(CFLAGS) -o $@ $^
 
-obj/%.o: src/%.c | obj
+obj/%.o: src/%.cpp | obj
 	@$(CC) $(CFLAGS) -c $< -o $@
 

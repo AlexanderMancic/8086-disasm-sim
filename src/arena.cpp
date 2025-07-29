@@ -6,7 +6,7 @@
 #include "arena.h"
 
 bool initializeArena(Arena *arena, size_t capacity) {
-	arena->base = malloc(capacity);
+	arena->base = (char *)malloc(capacity);
 	if (arena->base == NULL) {
 		perror("Error allocating Arena memory");
 		return false;
