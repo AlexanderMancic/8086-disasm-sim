@@ -1301,7 +1301,7 @@ int main(int argc, char **argv) {
 			Cleanup(1, inputFD, outputFile, &arena);
 		}
 
-		ssize_t bytesWritten = write(dumpFD, arena.base + 256, (64*4*64));
+		ssize_t bytesWritten = write(dumpFD, ram, (64*4*65));
 		if (bytesWritten != (64*4*65)) {
 			perror("Error writing to dump file");
 		}
