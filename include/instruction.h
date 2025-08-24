@@ -3,6 +3,8 @@
 #include "register.h"
 #include "types.h"
 
+enum class Opcode : u8;
+
 typedef struct {
 
     i32 jumpIP;
@@ -11,7 +13,7 @@ typedef struct {
 
     u16 addr;
 
-    u8 opcode;
+    Opcode opcode;
     u8 d;
     u8 w;
     u8 reg;

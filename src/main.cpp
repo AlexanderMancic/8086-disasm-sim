@@ -149,8 +149,7 @@ int main(int argc, char **argv) {
 			Cleanup(1, inputFD, outputFile, &arena);
 		}
 
-		// mov r/m to/from reg
-		if (inst.opcode == 0b100010) {
+		if (inst.opcode == Opcode::MOV_RM_REG) {
 
 			inst.d = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
@@ -264,8 +263,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// mov imm to r/m
-		else if (inst.opcode == 0b1100011) {
+		else if (inst.opcode == Opcode::MOV_IMM_RM) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -327,8 +325,7 @@ int main(int argc, char **argv) {
 				ram[address + 1] = splitImm.byte.hi;
 			}
 		}
-		// mov imm to reg
-		else if (inst.opcode == 0b1011) {
+		else if (inst.opcode == Opcode::MOV_IMM_REG) {
 
 			inst.w = (ram[ip] >> 3) & 1;
 			inst.reg = ram[ip] & 0b111;
@@ -367,8 +364,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// mov memory to accumulator
-		else if (inst.opcode == 0b1010000) {
+		else if (inst.opcode == Opcode::MOV_MEM_ACC) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -386,8 +382,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// mov accumulator to memory
-		else if (inst.opcode == 0b1010001) {
+		else if (inst.opcode == Opcode::MOV_ACC_MEM) {
 
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -405,8 +400,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// mov rm to sr
-		else if (inst.opcode == 0b10001110) {
+		else if (inst.opcode == Opcode::MOV_RM_SR) {
 
 			ip += 1;
 
@@ -452,8 +446,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// mov sr to rm
-		else if (inst.opcode == 0b10001100) {
+		else if (inst.opcode == Opcode::MOV_SR_RM) {
 
 			ip += 1;
 
@@ -637,8 +630,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// add/sub/cmp imm to/from/with r/m
-		else if (inst.opcode == 0b100000) {
+		else if (inst.opcode == Opcode::ADD_SUB_CMP_IMM_RM) {
 
 			inst.s = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
@@ -956,8 +948,7 @@ int main(int argc, char **argv) {
 				Cleanup(1, inputFD, outputFile, &arena);
 			}
 		}
-		// je / jz
-		else if (inst.opcode == 0b01110100) {
+		else if (inst.opcode == Opcode::JZ) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -970,8 +961,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jl / jnge
-		else if (inst.opcode == 0b01111100) {
+		else if (inst.opcode == Opcode::JL) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -984,8 +974,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jle / jng
-		else if (inst.opcode == 0b01111110) {
+		else if (inst.opcode == Opcode::JLE) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -998,8 +987,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jb / jnae
-		else if (inst.opcode == 0b01110010) {
+		else if (inst.opcode == Opcode::JB) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1012,8 +1000,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jbe / jna
-		else if (inst.opcode == 0b01110110) {
+		else if (inst.opcode == Opcode::JBE) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1026,8 +1013,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jp / jpe
-		else if (inst.opcode == 0b01111010) {
+		else if (inst.opcode == Opcode::JP) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1040,8 +1026,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jo
-		else if (inst.opcode == 0b01110000) {
+		else if (inst.opcode == Opcode::JO) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1054,8 +1039,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// js
-		else if (inst.opcode == 0b01111000) {
+		else if (inst.opcode == Opcode::JS) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1068,8 +1052,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jne / jnz
-		else if (inst.opcode == 0b01110101) {
+		else if (inst.opcode == Opcode::JNZ) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1082,8 +1065,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jnl / jge
-		else if (inst.opcode == 0b01111101) {
+		else if (inst.opcode == Opcode::JGE) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1096,8 +1078,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jnle / jg
-		else if (inst.opcode == 0b01111111) {
+		else if (inst.opcode == Opcode::JG) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1110,8 +1091,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jnb / jae
-		else if (inst.opcode == 0b01110011) {
+		else if (inst.opcode == Opcode::JAE) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1124,8 +1104,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jnbe / ja
-		else if (inst.opcode == 0b01110111) {
+		else if (inst.opcode == Opcode::JA) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1138,8 +1117,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jnp / jpo
-		else if (inst.opcode == 0b01111011) {
+		else if (inst.opcode == Opcode::JNP) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1152,8 +1130,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jno
-		else if (inst.opcode == 0b01110001) {
+		else if (inst.opcode == Opcode::JNO) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1166,8 +1143,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// jns
-		else if (inst.opcode == 0b01111001) {
+		else if (inst.opcode == Opcode::JNS) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1180,8 +1156,7 @@ int main(int argc, char **argv) {
 				ip = (u16)inst.jumpIP;
 			}
 		}
-		// loop
-		else if (inst.opcode == 0b11100010) {
+		else if (inst.opcode == Opcode::LOOP) {
 			
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1197,8 +1172,7 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		// loopz / loope
-		else if (inst.opcode == 0b11100001) {
+		else if (inst.opcode == Opcode::LOOPZ) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1214,8 +1188,7 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		// loopnz / loopne
-		else if (inst.opcode == 0b11100000) {
+		else if (inst.opcode == Opcode::LOOPNZ) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 
@@ -1232,7 +1205,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		// jcxz
-		else if (inst.opcode == 0b11100011) {
+		else if (inst.opcode == Opcode::JCXZ) {
 
 			Decode_Conditional_Jump_Or_Loop(&inst, ram, &ip);
 

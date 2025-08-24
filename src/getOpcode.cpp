@@ -5,60 +5,65 @@
 bool GetOpcode(Instruction *inst, u8 byte) {
 
 	// NOTE: sorted to allow implementation of binary search later
-	const u8 opcodes[] = {
-		0,
-		2,
-		10,
-		11,
-		14,
-		22,
-		30,
-		32,
-		34,
-		80,
-		81,
-		99,
-		112,
-		113,
-		114,
-		115,
-		116,
-		117,
-		118,
-		119,
-		120,
-		121,
-		122,
-		123,
-		124,
-		125,
-		127,
-		126,
-		140,
-		142,
-		224,
-		225,
-		226,
-		227,
+	constexpr Opcode opcodes[] = {
+
+		Opcode::ADD_RM_REG,
+	    Opcode::ADD_IMM_ACC,
+	    Opcode::SUB_RM_REG,
+	    Opcode::SUB_IMM_ACC,
+	    Opcode::CMP_RM_REG,
+	    Opcode::CMP_IMM_ACC,
+	    Opcode::JO,
+	    Opcode::JNO,
+	    Opcode::JB,
+	    Opcode::JAE,
+	    Opcode::JZ,
+	    Opcode::JNZ,
+	    Opcode::JBE,
+	    Opcode::JA,
+	    Opcode::JS,
+	    Opcode::JNS,
+	    Opcode::JP,
+	    Opcode::JNP,
+	    Opcode::JL,
+	    Opcode::JGE,
+	    Opcode::JLE,
+	    Opcode::JG,
+	    Opcode::ADD_SUB_CMP_IMM_RM,
+	    Opcode::MOV_RM_REG,
+	    Opcode::MOV_SR_RM,
+	    Opcode::MOV_RM_SR,
+	    Opcode::MOV_MEM_ACC,
+	    Opcode::MOV_ACC_MEM,
+	    Opcode::MOV_IMM_REG,
+	    Opcode::MOV_IMM_RM,
+	    Opcode::LOOPNZ,
+	    Opcode::LOOPZ,
+	    Opcode::LOOP,
+	    Opcode::JCXZ,
 	};
 
-	const u8 opcodeBitLengths[] = {
-		8,
-		7,
-		6,
-		4,
-	};
+	// const u8 opcodeBitLengths[] = {
+	// 	8,
+	// 	7,
+	// 	6,
+	// 	4,
+	// };
+	
+	u8 mask = 0xFF;
 
-	for (size_t i = 0; i < sizeof(opcodeBitLengths); i++) {
+	for (u8 i = 0; i < 8; i++) {
 		
-		u8 comparisonValue = byte >> (8 - opcodeBitLengths[i]);
-		for (size_t j = 0; j < sizeof(opcodes); j++) {
 
-			if (comparisonValue == opcodes[j]) {
+		for (u8 j = 0; j < sizeof(opcodes); j++) {
+
+			if ((byte & mask) == (u8)opcodes[j]) {
 				inst->opcode = opcodes[j];
 				return true;
 			}
 		}
+
+		mask = (u8)(mask << 1);
 	}
 	
 	return false;
