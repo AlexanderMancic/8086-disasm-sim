@@ -5,7 +5,8 @@
 
 #include "arena.h"
 
-bool initializeArena(Arena *arena, size_t capacity) {
+bool InitializeArena(Arena *arena, size_t capacity)
+{
 	arena->base = (char *)malloc(capacity);
 	if (arena->base == NULL) {
 		perror("Error allocating Arena memory");
@@ -17,21 +18,24 @@ bool initializeArena(Arena *arena, size_t capacity) {
 	return true;
 }
 
-void freeArena(Arena *arena) {
+void FreeArena(Arena *arena)
+{
 	free(arena->base);
 	arena->base = NULL;
 	arena->size = 0;
 	arena->used = 0;
 }
 
-u8 *allocateU8(Arena *arena, size_t allocationSize) {
-	if (arena->used + allocationSize > arena->size) return NULL;
-	arena->used += allocationSize;
+u8 *AllocateU8(Arena *arena, size_t allocation_size)
+{
+	if (arena->used + allocation_size > arena->size) return NULL;
+	arena->used += allocation_size;
 	return (u8 *)arena->base + arena->used;
 }
 
-char *allocateChar(Arena *arena, size_t allocationSize) {
-	if (arena->used + allocationSize > arena->size) return NULL;
-	arena->used += allocationSize;
+char *AllocateChar(Arena *arena, size_t allocation_size)
+{
+	if (arena->used + allocation_size > arena->size) return NULL;
+	arena->used += allocation_size;
 	return arena->base + arena->used;
 }

@@ -2,11 +2,13 @@
 
 #include "types.h"
 
-typedef union {
+union Register
+{
     u16 word;
-    struct {
+
+    struct
+    {
         u8 lo;
         u8 hi;
     } byte;
-} Register;
-
+};

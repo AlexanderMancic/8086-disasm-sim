@@ -8,24 +8,24 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#include "do_arithmetic.h"
-#include "get_displacement.h"
-#include "get_address.h"
-#include "get_opcode.h"
-#include "get_sr_string.h"
+#include "doArithmetic.h"
+#include "getDisplacement.h"
+#include "getAddress.h"
+#include "getOpcode.h"
+#include "GetSrString.h"
 #include "types.h"
-#include "s_print_flags.h"
-#include "get_reg_string.h"
+#include "sPrintFlags.h"
+#include "GetRegString.h"
 #include "constants.h"
-#include "write_rm_string.h"
+#include "writeRmString.h"
 #include "register.h"
-#include "flags_reg_mask.h"
+#include "flagsRegMask.h"
 #include "arena.h"
 #include "instruction.h"
 #include "decode_conditional_jump_or_loop.h"
 #include "cleanup.h"
 
-#define GET_REG_VAL(w, reg) ((w) ? *registers_w1[reg] : *registers_w0[reg])
+#define GET_REG_VAL(w, reg) ((w) ? *registers_w0[reg] : *registersW0[reg])
 #define SET_REG_VAL(w, reg, val) ((w) ? (*registers_w1[reg] = ((u16)val)) : (*registers_w0[reg] = ((u8)val)))
 #define isFlagSet(flagMask) ((flags_register & flagMask) != 0)
 
@@ -181,10 +181,10 @@ int main(int argc, char **argv)
 
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
-			char reg_string[MAX_OPERAND] = {0};
+			char regString[MAX_OPERAND] = {0};
 			char rm_string[MAX_OPERAND] = {0};
 
-			strncpy(reg_string, GetRegString(inst.reg, inst.w), 3);
+			strncpy(regString, GetRegString(inst.reg, inst.w), 3);
 
 			i32 disp;
 			if (sim)
@@ -207,13 +207,13 @@ int main(int argc, char **argv)
 
 			if (inst.d)
 			{
-				strncpy(dst, reg_string, MAX_OPERAND);
+				strncpy(dst, regString, MAX_OPERAND);
 				strncpy(src, rm_string, MAX_OPERAND);
 			}
 			else
 			{
 				strncpy(dst, rm_string, MAX_OPERAND);
-				strncpy(src, reg_string, MAX_OPERAND);
+				strncpy(src, regString, MAX_OPERAND);
 			}
 
 			if (fprintf(output_file, "mov %s, %s", dst, src) < 0)
@@ -224,96 +224,75 @@ int main(int argc, char **argv)
 
 			if (sim && inst.mod == 3)
 			{
-				char before_reg_value[6] = {0};
-				char after_reg_value[6] = {0};
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
 
 				if (inst.d)
 				{
-					snprintf(before_reg_value, sizeof(before_reg_value), "%hu", GET_REG_VAL(inst.w, inst.reg));
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 					SET_REG_VAL(inst.w, inst.reg, GET_REG_VAL(inst.w, inst.rm));
-					snprintf(after_reg_value, sizeof(after_reg_value), "%hu", GET_REG_VAL(inst.w, inst.reg));
-				}
-				else
-				{
-					snprintf(before_reg_value, sizeof(before_reg_value), "%hu", GET_REG_VAL(inst.w, inst.rm));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
+				} else {
+					snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(inst.w, inst.rm));
 					SET_REG_VAL(inst.w, inst.rm, GET_REG_VAL(inst.w, inst.reg));
-					snprintf(after_reg_value, sizeof(after_reg_value), "%hu", GET_REG_VAL(inst.w, inst.rm));
+					snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, inst.rm));
 				}
 
-				if (fprintf(output_file, " ; %s: %s -> %s", dst, before_reg_value, after_reg_value) < 0)
-				{
+				if (fprintf(output_file, " ; %s: %s -> %s", dst, beforeRegValue, afterRegValue) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (sim && inst.mod != 3)
-			{
+			if (sim && inst.mod != 3) {
 				i32 address = GetAddress(registers_w1, (u16)disp, inst.mod, inst.rm);
-				if (address == -1)
-				{
+				if (address == -1) {
 					fprintf(stderr, "Error calculating address\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 
-				char address_string[6] = {0};
-				snprintf(address_string, sizeof(address_string), "%hu", address);
+				char addressString[6] = {0};
+				snprintf(addressString, sizeof(addressString), "%hu", address);
 				
-				char before_value_string[6] = {0};
-				char after_value_string[6] = {0};
-				Register value;
-				if (inst.d)
-				{
-					snprintf(before_value_string, sizeof(before_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
+				char beforeValue[6] = {0};
+				char afterValue[6] = {0};
+				Register val;
+				if (inst.d) {
+					snprintf(beforeValue, sizeof(beforeValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 
-					value.byte.lo = ram[address];
-					value.byte.hi = ram[address + 1];
-					SET_REG_VAL(1, inst.reg, value.word);
+					val.byte.lo = ram[address];
+					val.byte.hi = ram[address + 1];
+					SET_REG_VAL(1, inst.reg, val.word);
 
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
-				}
-				else
-				{
-					Register before_value;
-					before_value.byte.lo = ram[address];
-					before_value.byte.hi = ram[address + 1];
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", before_value.word);
+					snprintf(afterValue, sizeof(afterValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
+				} else {
+					Register beforeVal;
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 
-					value.word = GET_REG_VAL(1, inst.reg);
-					ram[address] = value.byte.lo;
-					ram[address + 1] = value.byte.hi;
+					val.word = GET_REG_VAL(1, inst.reg);
+					ram[address] = val.byte.lo;
+					ram[address + 1] = val.byte.hi;
 
-					before_value.byte.lo = ram[address];
-					before_value.byte.hi = ram[address + 1];
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", before_value.word);
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 				}
 
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s, %s: %s -> %s",
-						dst,
-						address_string,
-						before_value_string,
-						after_value_string
-					) < 0
-				)
-				{
+				if (fprintf(output_file, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::MOV_IMM_RM)
-		{
+		else if (inst.opcode == Opcode::MOV_IMM_RM) {
+
 			inst.w = ram[ip] & 1;
 			ip += 1;
 
@@ -322,153 +301,135 @@ int main(int argc, char **argv)
 			ip += 1;
 
 			char rm_string[MAX_OPERAND] = {0};
-			char imm_string[11] = {0};
-			constexpr const char *size_specifier[2] = {"byte", "word"};
+			char immString[11] = {0};
+			const char *sizeSpecifier[2] = {"byte", "word"};
 
 			i32 disp;
-			if (sim)
-			{
+			if (sim) {
 				disp = GetDisplacement(&ram[ip], inst.mod, inst.rm);
-				if (disp == -1)
-				{
+				if (disp == -1) {
 					fprintf(stderr, "Error getting displacement value\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			i8 ip_offset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, inst.w);
-			if (ip_offset == -1)
-			{
+			i8 ipOffset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, inst.w);
+			if (ipOffset == -1) {
 				fprintf(stderr, "Error writing rm string to buffer\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
-			ip += (u16)ip_offset;
+			ip += (u16)ipOffset;
 
 			u16 imm;
-			if (inst.w)
-			{
+			if (inst.w) {
 				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
 				ip += 2;
-			}
-			else
-			{
+			} else {
 				imm = (u16)ram[ip];
 				ip += 1;
 			}
 
-			if (inst.mod == 0 && inst.rm == 0b110)
-			{
-				snprintf(imm_string, sizeof(imm_string), "%u", imm);
-			}
-			else
-			{
-				snprintf(imm_string, sizeof(imm_string), "%s %u", size_specifier[inst.w], imm);
+			if (inst.mod == 0 && inst.rm == 0b110) {
+				snprintf(immString, sizeof(immString), "%u", imm);
+			} else {
+				snprintf(immString, sizeof(immString), "%s %u", sizeSpecifier[inst.w], imm);
 			}
 
-			if (fprintf(output_file, "mov %s %s, %s \n", size_specifier[inst.w], rm_string, imm_string) < 0)
-			{
+			if (fprintf(output_file, "mov %s %s, %s \n", sizeSpecifier[inst.w], rm_string, immString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
 			// TODO: write to output simulation comment
-			if (sim)
-			{
+			if (sim) {
 				i32 address = GetAddress(registers_w1, (u16)disp, inst.mod, inst.rm);
 				if (address == -1) {
 					fprintf(stderr, "Error calculating address\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 
-				Register split_imm = { .word = imm };
-				ram[address] = split_imm.byte.lo;
-				ram[address + 1] = split_imm.byte.hi;
+				Register splitImm = { .word = imm };
+				ram[address] = splitImm.byte.lo;
+				ram[address + 1] = splitImm.byte.hi;
 			}
 		}
-		else if (inst.opcode == Opcode::MOV_IMM_REG)
-		{
+		else if (inst.opcode == Opcode::MOV_IMM_REG) {
+
 			inst.w = (ram[ip] >> 3) & 1;
 			inst.reg = ram[ip] & 0b111;
 			ip += 1;
 
-			char reg_string[3] = {0};
-			char imm_string[6] = {0};
+			char regString[3] = {0};
+			char immString[6] = {0};
 
 			u16 imm;
-			if (inst.w)
-			{
+			if (inst.w) {
 				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
 				ip += 2;
-			}
-			else
-			{
+			} else {
 				imm = (u16)ram[ip];
 				ip += 1;
 			}
 
-			strncpy(reg_string, GetRegString(inst.reg, inst.w), 3);
+			strncpy(regString, GetRegString(inst.reg, inst.w), 3);
 
-			snprintf(imm_string, sizeof(imm_string), "%hu", (u16)imm);
+			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
-			if (fprintf(output_file, "mov %s, %s", reg_string, imm_string) < 0)
-			{
+			if (fprintf(output_file, "mov %s, %s", regString, immString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			char before_reg_value_string[6] = {0};
-			char after_reg_value_string[6] = {0};
+			char beforeRegValue[6] = {0};
+			char afterRegValue[6] = {0};
 
-			snprintf(before_reg_value_string, sizeof(before_reg_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
+			snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 			SET_REG_VAL(inst.w, inst.reg, imm);
-			snprintf(after_reg_value_string, sizeof(after_reg_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
+			snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 
-			if (fprintf(output_file, " ; %s: %s -> %s \n", reg_string, before_reg_value_string, after_reg_value_string) < 0)
-			{
+			if (fprintf(output_file, " ; %s: %s -> %s \n", regString, beforeRegValue, afterRegValue) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::MOV_MEM_ACC)
-		{
+		else if (inst.opcode == Opcode::MOV_MEM_ACC) {
+
 			inst.w = ram[ip] & 1;
 			ip += 1;
 
 			inst.addr = (u16)ram[ip] | (u16)(ram[ip + 1] << 8);
 			ip += 2;
 
-			char addr_string[8] = {0};
-			constexpr const char *const accumulator_string[2] = {"al", "ax"};
+			char addrString[8] = {0};
+			const char *const accumulatorString[2] = {"al", "ax"};
 
-			snprintf(addr_string, sizeof(addr_string), "[%hu]", inst.addr);
+			snprintf(addrString, sizeof(addrString), "[%hu]", inst.addr);
 
-			if (fprintf(output_file, "mov %s, %s\n", (char *)accumulator_string[inst.w], addr_string) < 0)
-			{
+			if (fprintf(output_file, "mov %s, %s\n", (char *)accumulatorString[inst.w], addrString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::MOV_ACC_MEM)
-		{
+		else if (inst.opcode == Opcode::MOV_ACC_MEM) {
+
 			inst.w = ram[ip] & 1;
 			ip += 1;
 
 			inst.addr = (u16)ram[ip] | (u16)(ram[ip + 1] << 8);
 			ip += 2;
 
-			char addr_string[8] = {0};
-			constexpr const char *const accumulatorString[2] = {"al", "ax"};
+			char addrString[8] = {0};
+			const char *const accumulatorString[2] = {"al", "ax"};
 
-			snprintf(addr_string, sizeof(addr_string), "[%hu]", inst.addr);
+			snprintf(addrString, sizeof(addrString), "[%hu]", inst.addr);
 
-			if (fprintf(output_file, "mov %s, %s\n", addr_string, (char *)accumulatorString[inst.w]) < 0)
-			{
+			if (fprintf(output_file, "mov %s, %s\n", addrString, (char *)accumulatorString[inst.w]) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::MOV_RM_SR)
-		{
+		else if (inst.opcode == Opcode::MOV_RM_SR) {
+
 			ip += 1;
 
 			inst.mod = ram[ip] >> 6;
@@ -477,42 +438,38 @@ int main(int argc, char **argv)
 			ip += 1;
 
 			char rm_string[MAX_OPERAND] = {0};
-			char sr_string[3] = {0};
+			char srString[3] = {0};
 
-			i8 ip_offset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, 1);
-			if (ip_offset == -1)
-			{
+			i8 ipOffset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, 1);
+			if (ipOffset == -1) {
 				fprintf(stderr, "Error: Failed to write rm string to buffer\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
-			ip += (u16)ip_offset;
+			ip += (u16)ipOffset;
 
-			strncpy(sr_string, GetSrString(inst.sr), 3);
+			strncpy(srString, GetSrString(inst.sr), 3);
 
-			if (fprintf(output_file, "mov %s, %s", sr_string, rm_string) < 0)
-			{
+			if (fprintf(output_file, "mov %s, %s", srString, rm_string) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			if (inst.mod == 3)
-			{
+			if (inst.mod == 3) {
+
 				char beforeRegValue[6] = {0};
 				char afterRegValue[6] = {0};
 
 				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", *seg_registers[inst.sr]);
-				*seg_registers[inst.sr] = GET_REG_VAL(1, inst.rm);
+				*segRegisters[inst.sr] = GET_REG_VAL(1, inst.rm);
 				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", *seg_registers[inst.sr]);
 
-				if (fprintf(output_file, " ; %s: %s -> %s", sr_string, beforeRegValue, afterRegValue) < 0)
-				{
+				if (fprintf(output_file, " ; %s: %s -> %s", srString, beforeRegValue, afterRegValue) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
@@ -527,58 +484,45 @@ int main(int argc, char **argv)
 			ip += 1;
 
 			char rm_string[MAX_OPERAND] = {0};
-			char sr_string[3] = {0};
+			char srString[3] = {0};
 
-			i8 ip_offset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, 1);
-			if (ip_offset == -1)
-			{
+			i8 ipOffset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, 1);
+			if (ipOffset == -1) {
 				fprintf(stderr, "Error writing rm string to buffer\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
-			ip += (u16)ip_offset;
+			ip += (u16)ipOffset;
 
-			strncpy(sr_string, GetSrString(inst.sr), 3);
+			strncpy(srString, GetSrString(inst.sr), 3);
 
-			if (fprintf(output_file, "mov %s, %s", rm_string, sr_string) < 0)
-			{
+			if (fprintf(output_file, "mov %s, %s", rm_string, srString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
 			if (sim && inst.mod == 3) {
 
-				char before_reg_value_string[6] = {0};
-				char after_reg_value_string[6] = {0};
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
 
-				snprintf(before_reg_value_string, sizeof(before_reg_value_string), "%hu", GET_REG_VAL(1, inst.rm));
-				SET_REG_VAL(1, inst.rm, *seg_registers[inst.sr]);
-				snprintf(after_reg_value_string, sizeof(after_reg_value_string), "%hu", GET_REG_VAL(1, inst.rm));
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", GET_REG_VAL(1, inst.rm));
+				SET_REG_VAL(1, inst.rm, *segRegisters[inst.sr]);
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(1, inst.rm));
 
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s: %s -> %s",
-						rm_string,
-						before_reg_value_string,
-						after_reg_value_string
-					) < 0)
-				{
+				if (fprintf(output_file, " ; %s: %s -> %s", rm_string, beforeRegValue, afterRegValue) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
 		// add/sub/cmp r/m with/and reg to either
-		else if ((ram[ip] & 0b11000100) == 0)
-		{
+		else if ((ram[ip] & 0b11000100) == 0) {
+
 			inst.arith_opcode = ram[ip] >> 3;
 			inst.d = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
@@ -589,53 +533,46 @@ int main(int argc, char **argv)
 			inst.rm = ram[ip] & 0b111;
 			ip += 1;
 
-			char reg_string[3] = {0};
+			char regString[3] = {0};
 			char rm_string[MAX_OPERAND] = {0};
-			char arith_mnemonic[4] = {0};
+			char arithMnemonic[4] = {0};
 			char dst[MAX_OPERAND] = {0};
 			char src[MAX_OPERAND] = {0};
 
 			i32 disp;
-			if (sim)
-			{
+			if (sim) {
 				disp = GetDisplacement(&ram[ip], inst.mod, inst.rm);
-				if (disp == -1)
-				{
+				if (disp == -1) {
 					fprintf(stderr, "Error getting displacement value\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			strncpy(arith_mnemonic, arithMnemonics[inst.arith_opcode], 3);
-			strncpy(reg_string, GetRegString(inst.reg, inst.w), 3);
+			strncpy(arithMnemonic, arithMnemonics[inst.arith_opcode], 3);
+			strncpy(regString, GetRegString(inst.reg, inst.w), 3);
 
 			i8 ipOffset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, inst.w);
-			if (ipOffset == -1)
-			{
+			if (ipOffset == -1) {
 				fprintf(stderr, "Error writing rm string to buffer\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 			ip += (u16)ipOffset;
 
-			if (inst.d)
-			{
-				strncpy(dst, reg_string, MAX_OPERAND);
+			if (inst.d) {
+				strncpy(dst, regString, MAX_OPERAND);
 				strncpy(src, rm_string, MAX_OPERAND);
-			}
-			else
-			{
+			} else {
 				strncpy(dst, rm_string, MAX_OPERAND);
-				strncpy(src, reg_string, MAX_OPERAND);
+				strncpy(src, regString, MAX_OPERAND);
 			}
 
-			if (fprintf(output_file, "%s %s, %s", arith_mnemonic, dst, src) < 0)
-			{
+			if (fprintf(output_file, "%s %s, %s", arithMnemonic, dst, src) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			if (sim && inst.mod == 3)
-			{
+			if (sim && inst.mod == 3) {
+
 				u8 dstRegOpcode;
 				u16 flagsRegBefore = flags_register;
 				u16 result;
@@ -646,14 +583,11 @@ int main(int argc, char **argv)
 				char flags_stringBefore[10] = {0};
 				char flags_stringAfter[10] = {0};
 
-				if (inst.d)
-				{
+				if (inst.d) {
 					dstRegOpcode = inst.reg;
 					dstRegVal = GET_REG_VAL(inst.w, inst.reg);
 					srcRegVal = GET_REG_VAL(inst.w, inst.rm);
-				}
-				else
-				{
+				} else {
 					dstRegOpcode = inst.rm;
 					dstRegVal = GET_REG_VAL(inst.w, inst.rm);
 					srcRegVal = GET_REG_VAL(inst.w, inst.reg);
@@ -668,91 +602,64 @@ int main(int argc, char **argv)
 
 				SPrintFlags(flags_stringBefore, flagsRegBefore);
 				SPrintFlags(flags_stringAfter, flags_register);
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s: %s -> %s | Flags: %s -> %s",
-						rm_string,
-						beforeRegValue,
-						afterRegValue,
-						flags_stringBefore,
-						flags_stringAfter
-					) < 0)
-				{
+				if (fprintf(output_file, " ; %s: %s -> %s | Flags: %s -> %s", rm_string, beforeRegValue, afterRegValue, flags_stringBefore, flags_stringAfter) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (sim && inst.w && inst.mod != 3)
-			{
+			if (sim && inst.w && inst.mod != 3) {
+				
 				i32 address = GetAddress(registers_w1, (u16)disp, inst.mod, inst.rm);
 				if (address == -1) {
 					fprintf(stderr, "Error calculating address\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 
-				char address_string[6] = {0};
-				snprintf(address_string, sizeof(address_string), "%hu", address);
+				char addressString[6] = {0};
+				snprintf(addressString, sizeof(addressString), "%hu", address);
 				
-				char before_value_string[6] = {0};
-				char after_value_string[6] = {0};
-				Register value;
-				value.byte.lo = ram[address];
-				value.byte.hi = ram[address + 1];
-				if (inst.d)
-				{
-					snprintf(before_value_string, sizeof(before_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
+				char beforeValue[6] = {0};
+				char afterValue[6] = {0};
+				Register val;
+				val.byte.lo = ram[address];
+				val.byte.hi = ram[address + 1];
+				if (inst.d) {
+					snprintf(beforeValue, sizeof(beforeValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
 
-					u16 result = DoArithmetic(GET_REG_VAL(inst.w, inst.reg), value.word, &flags_register, &inst);
+					u16 result = DoArithmetic(GET_REG_VAL(inst.w, inst.reg), val.word, &flags_register, &inst);
 					SET_REG_VAL(inst.w, inst.reg, result);
 
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", GET_REG_VAL(inst.w, inst.reg));
-				}
-				else
-				{
-					Register before_value;
-					before_value.byte.lo = ram[address];
-					before_value.byte.hi = ram[address + 1];
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", before_value.word);
+					snprintf(afterValue, sizeof(afterValue), "%hu", GET_REG_VAL(inst.w, inst.reg));
+				} else {
+					Register beforeVal;
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 
-					u16 result = DoArithmetic(value.word, GET_REG_VAL(inst.w, inst.reg), &flags_register, &inst);
-					value.word = result;
-					ram[address] = value.byte.lo;
-					ram[address + 1] = value.byte.hi;
+					u16 result = DoArithmetic(val.word, GET_REG_VAL(inst.w, inst.reg), &flags_register, &inst);
+					val.word = result;
+					ram[address] = val.byte.lo;
+					ram[address + 1] = val.byte.hi;
 
-					before_value.byte.lo = ram[address];
-					before_value.byte.hi = ram[address + 1];
-					snprintf(after_value_string, sizeof(after_value_string), "%hu", before_value.word);
+					beforeVal.byte.lo = ram[address];
+					beforeVal.byte.hi = ram[address + 1];
+					snprintf(afterValue, sizeof(afterValue), "%hu", beforeVal.word);
 				}
 
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s, %s: %s -> %s",
-						dst,
-						address_string,
-						before_value_string,
-						after_value_string) < 0
-				)
-				{
+				if (fprintf(output_file, " ; %s, %s: %s -> %s", dst, addressString, beforeValue, afterValue) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::ADD_SUB_CMP_IMM_RM)
-		{
+		else if (inst.opcode == Opcode::ADD_SUB_CMP_IMM_RM) {
+
 			inst.s = (ram[ip] >> 1) & 1;
 			inst.w = ram[ip] & 1;
 			ip += 1;
@@ -762,451 +669,328 @@ int main(int argc, char **argv)
 			inst.rm = ram[ip] & 0b111;
 			ip += 1;
 
-			char arith_mnemonic[4] = {0};
+			char arithMnemonic[4] = {0};
 			char rm_string[MAX_OPERAND] = {0};
-			char imm_string[11] = {0};
-			constexpr const char *size_specifier[2] = {"byte", "word"};
+			char immString[11] = {0};
+			const char *sizeSpecifier[2] = {"byte", "word"};
 
-			strncpy(arith_mnemonic, arithMnemonics[inst.arith_opcode], 3);
+			strncpy(arithMnemonic, arithMnemonics[inst.arith_opcode], 3);
 
-			i8 ip_offset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, inst.w);
-			if (ip_offset == -1)
-			{
+			i8 ipOffset = WriteRmString(rm_string, &ram[ip], inst.mod, inst.rm, inst.w);
+			if (ipOffset == -1) {
 				fprintf(stderr, "Error writing rm string to buffer\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
-			ip += (u16)ip_offset;
+			ip += (u16)ipOffset;
 
 			u16 imm;
-			if (inst.w && !(inst.s))
-			{
+			if (inst.w && !(inst.s)) {
 				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
 				ip += 2;
-			}
-			else
-			{
+			} else {
 				imm = (u16)ram[ip];
 				ip += 1;
 			}
 
-			if (inst.s && inst.w)
-			{
+			if (inst.s && inst.w) {
 				u8 temp = (u8)imm;
 				u8 msb = temp >> 7;
 
-				if (msb)
-				{
+				if (msb) {
 					imm = (u16)temp | (u16)((0b11111111) << 8);
-				}
-				else
-				{
+				} else {
 					imm = (u16)temp;
 				}
 			}
 
-			if (inst.mod == 3)
-			{
-				snprintf(imm_string, sizeof(imm_string), "%hu", imm);
-			}
-			else
-			{
-				snprintf(imm_string, sizeof(imm_string), "%s %hu", size_specifier[inst.w], imm);
+			if (inst.mod == 3) {
+				snprintf(immString, sizeof(immString), "%hu", imm);
+			} else {
+				snprintf(immString, sizeof(immString), "%s %hu", sizeSpecifier[inst.w], imm);
 			}
 
-			if (fprintf(output_file, "%s %s, %s", arith_mnemonic, rm_string, imm_string) < 0)
-			{
+			if (fprintf(output_file, "%s %s, %s", arithMnemonic, rm_string, immString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			if (sim && inst.mod == 3)
-			{
-				u16 flags_reg_before = flags_register;
+			if (sim && inst.mod == 3) {
+
+				u16 flagsRegBefore = flags_register;
 				u16 result;
-				u16 reg_value;
-				u16 imm_value;
-				char before_reg_value[6] = {0};
-				char after_reg_value[6] = {0};
-				char flags_string_before[10] = {0};
-				char flags_string_after[10] = {0};
+				u16 regVal;
+				u16 immVal;
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
+				char flags_stringBefore[10] = {0};
+				char flags_stringAfter[10] = {0};
 
-				reg_value = GET_REG_VAL(inst.w, inst.rm);
-				imm_value = (u16)imm;
+				regVal = GET_REG_VAL(inst.w, inst.rm);
+				immVal = (u16)imm;
 
-				snprintf(before_reg_value, sizeof(before_reg_value), "%hu", reg_value);
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", regVal);
 
-				result = DoArithmetic(reg_value, imm_value, &flags_register, &inst);
+				result = DoArithmetic(regVal, immVal, &flags_register, &inst);
 				SET_REG_VAL(inst.w, inst.rm, result);
 
-				snprintf(after_reg_value, sizeof(after_reg_value), "%hu", GET_REG_VAL(inst.w, inst.rm));
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, inst.rm));
 
-				SPrintFlags(flags_string_before, flags_reg_before);
-				SPrintFlags(flags_string_after, flags_register);
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s: %s -> %s | Flags: %s -> %s",
-						rm_string,
-						before_reg_value,
-						after_reg_value,
-						flags_string_before,
-						flags_string_after
-					) < 0
-				)
-				{
+				SPrintFlags(flags_stringBefore, flagsRegBefore);
+				SPrintFlags(flags_stringAfter, flags_register);
+				if (fprintf(output_file, " ; %s: %s -> %s | Flags: %s -> %s", rm_string, beforeRegValue, afterRegValue, flags_stringBefore, flags_stringAfter) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
 		// add/sub/cmp imm to/from/with accumulator
-		else if ((ram[ip] & 0b11000110) == 0b00000100)
-		{
+		else if ((ram[ip] & 0b11000110) == 0b00000100) {
+
 			inst.arith_opcode = (ram[ip] >> 3) & 0b111;
 			inst.w = ram[ip] & 1;
 			ip += 1;
 
-			char imm_string[6] = {0};
-			constexpr const char *const accumulatorString[2] = {"al", "ax"};
+			char immString[6] = {0};
+			const char *const accumulatorString[2] = {"al", "ax"};
 
 			u16 imm;
-			if (inst.w)
-			{
+			if (inst.w) {
 				imm = (u16)(ram[ip] | (ram[ip + 1] << 8));
 				ip += 2;
-			}
-			else
-			{
+			} else {
 				imm = (u16)ram[ip];
 				ip += 1;
 			}
 
-			snprintf(imm_string, sizeof(imm_string), "%hu", (u16)imm);
+			snprintf(immString, sizeof(immString), "%hu", (u16)imm);
 
-			if
-			(
-				fprintf
-				(
-					output_file,
-					"%s %s, %s",
-					(char *)arithMnemonics[inst.arith_opcode],
-					(char *)accumulatorString[inst.w],
-					imm_string
-				) < 0
-			)
-			{
+			if (fprintf(output_file, "%s %s, %s", (char *)arithMnemonics[inst.arith_opcode], (char *)accumulatorString[inst.w], immString) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			if (sim)
-			{
+			if (sim) {
+
 				u8 msb;
 				u8 lsb;
-				u8 set_lsb_bits = 0;
-				u16 flags_reg_before = flags_register;
+				u8 setLSBbits = 0;
+				u16 flagsRegBefore = flags_register;
 				u16 result;
-				u16 dst_reg_val;
-				u16 src_reg_value;
-				char before_reg_value[6] = {0};
-				char after_reg_value[6] = {0};
+				u16 dstRegVal;
+				u16 srcRegVal;
+				char beforeRegValue[6] = {0};
+				char afterRegValue[6] = {0};
 				char rm_string[3] = {0};
-				char flags_string_before[10] = {0};
-				char flags_string_after[10] = {0};
+				char flags_stringBefore[10] = {0};
+				char flags_stringAfter[10] = {0};
 
-				if (inst.w)
-				{
+				if (inst.w) {
 					strncpy(rm_string, "ax", 3);
-				}
-				else
-				{
+				} else {
 					strncpy(rm_string, "al", 3);
 				}
 
-				dst_reg_val = GET_REG_VAL(inst.w, 0);
-				src_reg_value = (u16)imm;
+				dstRegVal = GET_REG_VAL(inst.w, 0);
+				srcRegVal = (u16)imm;
 
-				u8 dst_lo_nibble = dst_reg_val & 0b1111;
-				u8 src_lo_nibble = src_reg_value & 0b1111;
+				u8 dstLoNibble = dstRegVal & 0b1111;
+				u8 srcLoNibble = srcRegVal & 0b1111;
 
-				snprintf(before_reg_value, sizeof(before_reg_value), "%hu", dst_reg_val);
+				snprintf(beforeRegValue, sizeof(beforeRegValue), "%hu", dstRegVal);
 
-				switch (inst.arith_opcode)
-				{
+				switch (inst.arith_opcode) {
 					// add
-					case 0:
-					{
-						if (inst.w)
-						{
-							if ((dst_reg_val + src_reg_value) > 65535)
-							{
+					case 0: {
+
+						if (inst.w) {
+
+							if ((dstRegVal + srcRegVal) > 65535) {
 								flags_register |= CF;
-							}
-							else
-							{
-								flags_register &= (u16)~CF;
+							} else {
+							flags_register &= (u16)~CF;
 							}
 
-							if
-							(
-								((((i16)dst_reg_val) + ((i16)src_reg_value)) > 32767) ||
-								((((i16)dst_reg_val) + ((i16)src_reg_value)) < -32768)
-							)
-							{
+							if (
+								((((i16)dstRegVal) + ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) + ((i16)srcRegVal)) < -32768)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
 
-						}
-						else
-						{
-							if ((dst_reg_val + src_reg_value) > 255)
-							{
+						} else {
+							if ((dstRegVal + srcRegVal) > 255) {
 								flags_register |= CF;
-							}
-							else
-							{
-								flags_register &= (u16)~CF;
+							} else {
+							flags_register &= (u16)~CF;
 							}
 
-							if
-							(
-								((((i8)dst_reg_val) + ((i8)src_reg_value)) > 127) ||
-								((((i8)dst_reg_val) + ((i8)src_reg_value)) < -128)
-							)
-							{
+							if (
+								((((i8)dstRegVal) + ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) + ((i8)srcRegVal)) < -128)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
 						}
 
-						if ((dst_lo_nibble + src_lo_nibble) > 15)
-						{
+						if ((dstLoNibble + srcLoNibble) > 15) {
 							flags_register |= AF;
-						}
-						else
-						{
+						} else {
 							flags_register &= (u16)~AF;
 						}
 
-						SET_REG_VAL
-						(
+						SET_REG_VAL(
 							inst.w,
 							0,
-							(dst_reg_val + src_reg_value)
+							(dstRegVal + srcRegVal)
 						);
 
 						result = GET_REG_VAL(inst.w, 0);
 
-					} break;
+						break;
+					}
 					// sub
-					case 5:
-					{
-						if (inst.w)
-						{
-							if
-							(
-								((((i16)dst_reg_val) - ((i16)src_reg_value)) > 32767) ||
-								((((i16)dst_reg_val) - ((i16)src_reg_value)) < -32768)
-							)
-							{
+					case 5: {
+
+						if (inst.w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
-						}
-						else
-						{
-							if
-							(
-								((((i8)dst_reg_val) - ((i8)src_reg_value)) > 127) ||
-								((((i8)dst_reg_val) - ((i8)src_reg_value)) < -128)
-							)
-							{
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
 						}
 						
-						if (src_lo_nibble > dst_lo_nibble)
-						{
+						if (srcLoNibble > dstLoNibble) {
 							flags_register |= AF;
-						}
-						else
-						{
+						} else {
 							flags_register &= (u16)~AF;
 						}
 
-						if (src_reg_value > dst_reg_val)
-						{
+						if (srcRegVal > dstRegVal) {
 							flags_register |= CF;
-						}
-						else
-						{
+						} else {
 							flags_register &= (u16)~CF;
 						}
 
-						result = dst_reg_val - src_reg_value;
+						result = dstRegVal - srcRegVal;
 						SET_REG_VAL(inst.w, 0, result);
-
-					} break;
+						break;
+					}
 					// cmp
-					case 7:
-					{
-						if (inst.w)
-						{
-							if
-							(
-								((((i16)dst_reg_val) - ((i16)src_reg_value)) > 32767) ||
-								((((i16)dst_reg_val) - ((i16)src_reg_value)) < -32768)
-							)
-							{
+					case 7: {
+						if (inst.w) {
+							if (
+								((((i16)dstRegVal) - ((i16)srcRegVal)) > 32767) ||
+								((((i16)dstRegVal) - ((i16)srcRegVal)) < -32768)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
-						}
-						else
-						{
-							if
-							(
-								((((i8)dst_reg_val) - ((i8)src_reg_value)) > 127) ||
-								((((i8)dst_reg_val) - ((i8)src_reg_value)) < -128)
-							)
-							{
+						} else {
+							if (
+								((((i8)dstRegVal) - ((i8)srcRegVal)) > 127) ||
+								((((i8)dstRegVal) - ((i8)srcRegVal)) < -128)
+							) {
 								flags_register |= OF;
-							}
-							else
-							{
+							} else {
 								flags_register &= (u16)~OF;
 							}
 						}
 
-						if (src_reg_value > dst_reg_val)
-						{
+						if (srcRegVal > dstRegVal) {
 							flags_register |= CF;
-						}
-						else
-						{
+						} else {
 							flags_register &= (u16)~CF;
 						}
 
-						result = dst_reg_val - src_reg_value;
-					} break;
+						result = dstRegVal - srcRegVal;
+						break;
+					}
 				}
 
-				if (inst.w)
-				{
+				if (inst.w) {
 					Register splitResult = { .word = result };
 					lsb = splitResult.byte.lo;
 					msb = splitResult.byte.hi;
-				}
-				else
-				{
+				} else {
 					lsb = (u8)result;
 					msb = lsb;
 				}
 
-				while (lsb)
-				{
-					set_lsb_bits += lsb & 1;
+				while (lsb) {
+					setLSBbits += lsb & 1;
 					lsb >>= 1;
 				}
 
-				if (set_lsb_bits % 2 == 0)
-				{
+				if (setLSBbits % 2 == 0) {
 					flags_register |= PF;
-				}
-				else
-				{
+				} else {
 					flags_register &= (u16)~PF;
 				}
 
-				if (result == 0)
-				{
+				if (result == 0) {
 					flags_register |= ZF;
-				}
-				else
-				{
+				} else {
 					flags_register &= (u16)~ZF;
 				}
 
-				if ((msb >> 7) == 1)
-				{
+				if ((msb >> 7) == 1) {
 					flags_register |= SF;
-				}
-				else
-				{
+				} else {
 					flags_register &= (u16)~SF;
 				}
 
-				snprintf(after_reg_value, sizeof(after_reg_value), "%hu", GET_REG_VAL(inst.w, 0));
+				snprintf(afterRegValue, sizeof(afterRegValue), "%hu", GET_REG_VAL(inst.w, 0));
 
-				SPrintFlags(flags_string_before, flags_reg_before);
-				SPrintFlags(flags_string_after, flags_register);
-				if
-				(
-					fprintf
-					(
-						output_file,
-						" ; %s: %s -> %s | Flags: %s -> %s",
-						rm_string,
-						before_reg_value,
-						after_reg_value,
-						flags_string_before,
-						flags_string_after
-					) < 0
-				)
-				{
+				SPrintFlags(flags_stringBefore, flagsRegBefore);
+				SPrintFlags(flags_stringAfter, flags_register);
+				if (fprintf(output_file, " ; %s: %s -> %s | Flags: %s -> %s", rm_string, beforeRegValue, afterRegValue, flags_stringBefore, flags_stringAfter) < 0) {
 					fprintf(stderr, "Error writing to output file\n");
 					Cleanup(1, input_fd, output_file, &arena);
 				}
 			}
 
-			if (fprintf(output_file, "\n") < 0)
-			{
+			if (fprintf(output_file, "\n") < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 		}
-		else if (inst.opcode == Opcode::JZ)
-		{
+		else if (inst.opcode == Opcode::JZ) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
-			if (fprintf(output_file, "jz IP_%u\n", inst.jump_ip) < 0)
-			{
+			if (fprintf(output_file, "jz IP_%u\n", inst.jump_ip) < 0) {
 				fprintf(stderr, "Error writing to output file\n");
 				Cleanup(1, input_fd, output_file, &arena);
 			}
 
-			if (sim && (isFlagSet(ZF) ))
-			{
+			if (sim && (isFlagSet(ZF) )) {
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JL)
-		{
+		else if (inst.opcode == Opcode::JL) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jl IP_%u\n", inst.jump_ip) < 0) {
@@ -1218,8 +1002,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JLE)
-		{
+		else if (inst.opcode == Opcode::JLE) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jle IP_%u\n", inst.jump_ip) < 0) {
@@ -1231,8 +1015,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JB)
-		{
+		else if (inst.opcode == Opcode::JB) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jb IP_%u\n", inst.jump_ip) < 0) {
@@ -1244,8 +1028,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JBE)
-		{
+		else if (inst.opcode == Opcode::JBE) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jbe IP_%u\n", inst.jump_ip) < 0) {
@@ -1257,8 +1041,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JP)
-		{
+		else if (inst.opcode == Opcode::JP) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jp IP_%u\n", inst.jump_ip) < 0) {
@@ -1270,8 +1054,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JO)
-		{
+		else if (inst.opcode == Opcode::JO) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jo IP_%u\n", inst.jump_ip) < 0) {
@@ -1283,8 +1067,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JS)
-		{
+		else if (inst.opcode == Opcode::JS) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "js IP_%u\n", inst.jump_ip) < 0) {
@@ -1296,8 +1080,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JNZ)
-		{
+		else if (inst.opcode == Opcode::JNZ) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jnz IP_%u\n", inst.jump_ip) < 0) {
@@ -1309,8 +1093,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JGE)
-		{
+		else if (inst.opcode == Opcode::JGE) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jge IP_%u\n", inst.jump_ip) < 0) {
@@ -1322,8 +1106,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JG)
-		{
+		else if (inst.opcode == Opcode::JG) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jg IP_%u\n", inst.jump_ip) < 0) {
@@ -1335,8 +1119,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JAE)
-		{
+		else if (inst.opcode == Opcode::JAE) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jae IP_%u\n", inst.jump_ip) < 0) {
@@ -1348,8 +1132,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JA)
-		{
+		else if (inst.opcode == Opcode::JA) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "ja IP_%u\n", inst.jump_ip) < 0) {
@@ -1361,8 +1145,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JNP)
-		{
+		else if (inst.opcode == Opcode::JNP) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jnp IP_%u\n", inst.jump_ip) < 0) {
@@ -1374,8 +1158,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JNO)
-		{
+		else if (inst.opcode == Opcode::JNO) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jno IP_%u\n", inst.jump_ip) < 0) {
@@ -1387,8 +1171,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::JNS)
-		{
+		else if (inst.opcode == Opcode::JNS) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jns IP_%u\n", inst.jump_ip) < 0) {
@@ -1400,8 +1184,8 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else if (inst.opcode == Opcode::LOOP)
-		{
+		else if (inst.opcode == Opcode::LOOP) {
+			
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "loop IP_%u\n", inst.jump_ip) < 0) {
@@ -1416,8 +1200,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		else if (inst.opcode == Opcode::LOOPZ)
-		{
+		else if (inst.opcode == Opcode::LOOPZ) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "loopz IP_%u\n", inst.jump_ip) < 0) {
@@ -1432,8 +1216,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		else if (inst.opcode == Opcode::LOOPNZ)
-		{
+		else if (inst.opcode == Opcode::LOOPNZ) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "loopnz IP_%u\n", inst.jump_ip) < 0) {
@@ -1449,8 +1233,8 @@ int main(int argc, char **argv)
 			}
 		}
 		// jcxz
-		else if (inst.opcode == Opcode::JCXZ)
-		{
+		else if (inst.opcode == Opcode::JCXZ) {
+
 			DecodeConditionalJumpOrLoop(&inst, ram, &ip);
 
 			if (fprintf(output_file, "jcxz IP_%u\n", inst.jump_ip) < 0) {
@@ -1462,47 +1246,42 @@ int main(int argc, char **argv)
 				ip = (u16)inst.jump_ip;
 			}
 		}
-		else
-		{
+		else {
 			fprintf(stderr, "Byte: 0x%x\n", ram[ip]);
 			fprintf(stderr, "Error: Unknown opcode\n");
 			Cleanup(1, input_fd, output_file, &arena);
 		}
 	}
 
-	if (fprintf(output_file, "\n\n; Final Registers:\n\n; General Purpose Registers\n") < 0)
-	{
+	if (fprintf(output_file, "\n\n; Final Registers:\n\n; General Purpose Registers\n") < 0) {
 		fprintf(stderr, "Error writing to output file\n");
 		Cleanup(1, input_fd, output_file, &arena);
 	}
 
-	for (u8 i = 0; i < 8; i++)
-	{
+	for (u8 i = 0; i < 8; i++) {
+
 		char regValueString[6] = {0};
 
 		snprintf(regValueString, sizeof(regValueString), "%hu", GET_REG_VAL(1, i));
 
-		if (fprintf(output_file, ";\t%s: %s\n", (char *)GetRegString(i, 1), regValueString) < 0)
-		{
+		if (fprintf(output_file, ";\t%s: %s\n", (char *)GetRegString(i, 1), regValueString) < 0) {
 			fprintf(stderr, "Error writing to output file\n");
 			Cleanup(1, input_fd, output_file, &arena);
 		}
 	}
 
-	if (fprintf(output_file, "\n; Segment Registers:\n") < 0)
-	{
+	if (fprintf(output_file, "\n; Segment Registers:\n") < 0) {
 		fprintf(stderr, "Error writing to output file\n");
 		Cleanup(1, input_fd, output_file, &arena);
 	}
 
-	for (u8 i = 0; i < 4; i++)
-	{
+	for (u8 i = 0; i < 4; i++) {
+
 		char regValueString[6] = {0};
 
 		snprintf(regValueString, sizeof(regValueString), "%hu", *seg_registers[i]);
 
-		if (fprintf(output_file, ";\t%s: %s\n", (char *)GetSrString(i), regValueString) < 0)
-		{
+		if (fprintf(output_file, ";\t%s: %s\n", (char *)GetSrString(i), regValueString) < 0) {
 			fprintf(stderr, "Error writing to output file\n");
 			Cleanup(1, input_fd, output_file, &arena);
 		}
@@ -1511,29 +1290,24 @@ int main(int argc, char **argv)
 	char flags_string[10] = {0};
 	SPrintFlags(flags_string, flags_register);
 
-	if (fprintf(output_file, "\n; IP: %hu\n\n; Flags: %s\n", ip, flags_string) < 0)
-	{
+	if (fprintf(output_file, "\n; IP: %hu\n\n; Flags: %s\n", ip, flags_string) < 0) {
 		fprintf(stderr, "Error writing to output file\n");
 		Cleanup(1, input_fd, output_file, &arena);
 	}
 
-	if (dump)
-	{
-		int dump_fd = open("./bin/dump.data", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (dump_fd == -1)
-		{
+	if (dump) {
+		int dumpFD = open("./bin/dump.data", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (dumpFD == -1) {
 			perror("Error opening dump file");
 			Cleanup(1, input_fd, output_file, &arena);
 		}
 
-		ssize_t bytes_written = write(dump_fd, ram, (64*4*65));
-		if (bytes_written != (64*4*65))
-		{
+		ssize_t bytesWritten = write(dumpFD, ram, (64*4*65));
+		if (bytesWritten != (64*4*65)) {
 			perror("Error writing to dump file");
 		}
 
-		if (close(dump_fd) == -1)
-		{
+		if (close(dumpFD) == -1) {
 			perror("Error closing dump file");
 		}
 	}

@@ -6,8 +6,8 @@
 [[nodiscard]]
 bool GetOpcode(Instruction *inst, u8 byte);
 
-enum class Opcode : u8 {
-
+enum class Opcode : u8
+{
     ADD_RM_REG = 0,
     ADD_IMM_ACC = 4,
     SUB_RM_REG = 40,

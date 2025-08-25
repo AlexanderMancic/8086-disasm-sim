@@ -14,6 +14,6 @@ void Cleanup(int exit_code, int input_fd, FILE *output_file, Arena *arena)
 		perror("Error closing output file");
 		final_exit_code = EXIT_FAILURE;
 	}
-	freeArena(arena);
+	FreeArena(arena);
 	exit(final_exit_code);
 }

@@ -5,13 +5,14 @@
 
 #include "types.h"
 
-typedef struct {
+struct Arena
+{
     char *base;
     size_t size;
     size_t used;
-} Arena;
+};
 
-bool initializeArena(Arena *arena, size_t capacity);
-void freeArena(Arena *arena);
-u8 *allocateU8(Arena *arena, size_t allocationSize);
-char *allocateChar(Arena *arena, size_t allocationSize);
+bool InitializeArena(Arena *arena, size_t capacity);
+void FreeArena(Arena *arena);
+u8 *AllocateU8(Arena *arena, size_t allocation_size);
+char *AllocateChar(Arena *arena, size_t allocation_size);

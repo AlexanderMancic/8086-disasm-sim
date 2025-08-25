@@ -5,9 +5,9 @@
 
 enum class Opcode : u8;
 
-typedef struct {
-
-    i32 jumpIP;
+struct Instruction
+{
+    i32 jump_ip;
 
     Register data;
 
@@ -20,11 +20,11 @@ typedef struct {
     u8 mod;
     u8 rm;
     u8 sr;
-    u8 arithOpcode;
+    u8 arith_opcode;
     u8 s;
 
     i8 ip_inc8;
 
-} Instruction;
+};
 
 void ResetInstruction(Instruction *inst);

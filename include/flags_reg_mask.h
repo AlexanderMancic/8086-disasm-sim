@@ -1,6 +1,7 @@
 #pragma once
 
-typedef enum {
+typedef enum
+{
     CF = 1,
     PF = 4,
     AF = 16,

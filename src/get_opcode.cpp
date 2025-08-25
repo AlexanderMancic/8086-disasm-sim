@@ -1,12 +1,12 @@
 #include <stddef.h>
 
-#include "getOpcode.h"
+#include "get_opcode.h"
 
-bool GetOpcode(Instruction *inst, u8 byte) {
-
+bool GetOpcode(Instruction *inst, u8 byte)
+{
 	// NOTE: sorted to allow implementation of binary search later
-	constexpr Opcode opcodes[] = {
-
+	constexpr Opcode opcodes[] =
+	{
 		Opcode::ADD_RM_REG,
 	    Opcode::ADD_IMM_ACC,
 	    Opcode::SUB_RM_REG,
@@ -42,22 +42,15 @@ bool GetOpcode(Instruction *inst, u8 byte) {
 	    Opcode::LOOP,
 	    Opcode::JCXZ,
 	};
-
-	// const u8 opcodeBitLengths[] = {
-	// 	8,
-	// 	7,
-	// 	6,
-	// 	4,
-	// };
 	
 	u8 mask = 0xFF;
 
-	for (u8 i = 0; i < 8; i++) {
-		
-
-		for (u8 j = 0; j < sizeof(opcodes); j++) {
-
-			if ((byte & mask) == (u8)opcodes[j]) {
+	for (u8 i = 0; i < 8; i++)
+	{
+		for (u8 j = 0; j < sizeof(opcodes); j++)
+		{
+			if ((byte & mask) == (u8)opcodes[j])
+			{
 				inst->opcode = opcodes[j];
 				return true;
 			}
