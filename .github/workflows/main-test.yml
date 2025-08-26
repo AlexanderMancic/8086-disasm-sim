@@ -1,0 +1,21 @@
+name: Main Branch Tests
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends build-essential nasm valgrind
+
+      - name: Build and run tests
+        run: make test
